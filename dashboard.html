@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>地域循環インパクト・シミュレーター</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ─────────────────────────────────────────────────
+   DESIGN TOKENS — Strict brand palette
+   Brand: #887CFF / #47D1FF / #53ACFF / #000000 / #556476
+   Neutral: white + light grays (not brand colors)
+───────────────────────────────────────────────── */
+:root {
+  /* Brand colors */
+  --purple:      #887CFF;
+  --purple-soft: rgba(136,124,255,.12);
+  --purple-mid:  rgba(136,124,255,.25);
+  --cyan:        #47D1FF;
+  --cyan-soft:   rgba(71,209,255,.12);
+  --blue:        #53ACFF;
+  --blue-soft:   rgba(83,172,255,.12);
+  --black:       #000000;
+  --slate:       #556476;
+
+  /* Neutral (non-brand) */
+  --bg:          #F4F6FB;
+  --surface:     #FFFFFF;
+  --border:      #E8ECF4;
+  --border-mid:  #D0D6E8;
+  --bg-muted:    #EEF0F7;
+
+  /* Typography */
+  --font: "Manrope", "Noto Sans JP", sans-serif;
+
+  /* Radii */
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 22px;
+  --r-pill: 999px;
+
+  /* Shadows */
+  --sh-xs: 0 1px 3px rgba(85,100,118,.06);
+  --sh-sm: 0 3px 12px rgba(85,100,118,.09);
+  --sh-md: 0 8px 28px rgba(85,100,118,.12);
+
+  /* Transitions */
+  --tr: .2s ease;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { font-family: var(--font); -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--black); font-family: var(--font); line-height: 1.5; }
+img, svg, canvas { display: block; max-width: 100%; }
+button, input, select { font: inherit; }
+
+/* ─────────────────────────────
+   HEADER
+───────────────────────────── */
+.app-header {
+  position: sticky; top: 0; z-index: 200;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--sh-xs);
+  height: 66px;
+  display: flex; align-items: center;
+  padding: 0 24px; gap: 18px;
+}
+.hd-brand { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.hd-logo {
+  width: 40px; height: 40px; border-radius: var(--r-md);
+  background: var(--purple);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.hd-logo svg { width: 20px; height: 20px; fill: #fff; }
+.hd-brand-name { font-size: 14px; font-weight: 700; color: var(--black); letter-spacing: -.01em; white-space: nowrap; line-height: 1.25; }
+.hd-brand-sub  { font-size: 10px; font-weight: 400; color: var(--slate); }
+.hd-spacer { flex: 1; }
+.hd-controls { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+.ctrl-wrap { display: flex; flex-direction: column; gap: 2px; }
+.ctrl-lbl { font-size: 9px; font-weight: 700; color: var(--slate); letter-spacing: .5px; text-transform: uppercase; }
+.hd-select {
+  height: 36px; padding: 0 26px 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23556476' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") no-repeat right 10px center;
+  -webkit-appearance: none; color: var(--black);
+  font-size: 12px; font-weight: 500; font-family: var(--font);
+  cursor: pointer; outline: none;
+  transition: border-color var(--tr), box-shadow var(--tr);
+}
+.hd-select:focus { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+.hd-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 12px; border-radius: var(--r-pill);
+  background: var(--purple-soft); color: var(--purple);
+  font-size: 11px; font-weight: 600; white-space: nowrap; border: 1px solid var(--purple-mid);
+}
+.hd-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--purple); }
+
+/* ─────────────────────────────
+   LAYOUT — PC固定レイアウト
+───────────────────────────── */
+html { overflow-x: auto; }
+body { min-width: 1100px; }
+.app-shell { padding: 20px 20px; }
+.container  { width: 100%; max-width: 1380px; margin: 0 auto; }
+.dash-grid  {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(320px, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+.left-col  { display: flex; flex-direction: column; gap: 16px; min-width: 0; overflow: hidden; }
+.right-col { position: sticky; top: 82px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* ─────────────────────────────
+   CARDS
+───────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 20px 22px;
+  box-shadow: var(--sh-xs);
+  transition: box-shadow var(--tr), border-color var(--tr);
+}
+.card:hover { box-shadow: var(--sh-sm); border-color: var(--border-mid); }
+.card-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.card-title { font-size: 14px; font-weight: 700; color: var(--black); letter-spacing: -.01em; margin: 0; line-height: 1.3; }
+.card-desc  { font-size: 11px; font-weight: 400; color: var(--slate); margin: 3px 0 0; }
+
+/* ─────────────────────────────
+   TAG / PILL
+───────────────────────────── */
+.tag { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: var(--r-pill); font-size: 11px; font-weight: 600; background: var(--bg-muted); color: var(--slate); white-space: nowrap; }
+.tag-purple { background: var(--purple-soft); color: var(--purple); }
+.tag-cyan   { background: var(--cyan-soft);   color: #059ab8; }
+.tag-blue   { background: var(--blue-soft);   color: #2070c8; }
+
+/* ─────────────────────────────
+   KPI ROW
+───────────────────────────── */
+.kpi-row { display: grid; grid-template-columns: 1.25fr 1fr 1fr 1fr; gap: 14px; }
+
+/* Hero */
+.kpi-hero {
+  background: var(--purple);
+  border: none; border-radius: var(--r-xl);
+  padding: 20px 20px 18px; position: relative; overflow: hidden;
+  box-shadow: 0 6px 24px rgba(136,124,255,.32);
+  transition: box-shadow var(--tr);
+}
+.kpi-hero:hover { box-shadow: 0 10px 36px rgba(136,124,255,.42); }
+.kpi-hero::before {
+  content:''; position: absolute; right: -24px; top: -24px;
+  width: 100px; height: 100px; border-radius: 50%;
+  background: rgba(255,255,255,.10);
+}
+.kpi-hero::after {
+  content:''; position: absolute; right: 10px; bottom: -16px;
+  width: 60px; height: 60px; border-radius: 50%;
+  background: rgba(255,255,255,.07);
+}
+.kpi-hero-lbl  { font-size: 10px; font-weight: 600; color: rgba(255,255,255,.75); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 8px; }
+.kpi-hero-num  { font-size: 32px; font-weight: 700; color: #fff; line-height: 1; letter-spacing: -.03em; margin-bottom: 4px; }
+.kpi-hero-unit { font-size: 12px; font-weight: 500; color: rgba(255,255,255,.65); margin-left: 2px; }
+.kpi-hero-sub  { font-size: 11px; font-weight: 400; color: rgba(255,255,255,.6); margin-top: 8px; }
+.kpi-hero-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: rgba(255,255,255,.18); border-radius: var(--r-pill);
+  padding: 4px 10px; font-size: 11px; font-weight: 600; color: #fff;
+  margin-top: 10px;
+}
+
+/* Standard KPI */
+.kpi-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 18px 16px 16px;
+  box-shadow: var(--sh-xs);
+  transition: box-shadow var(--tr), border-color var(--tr);
+}
+.kpi-card:hover { box-shadow: var(--sh-sm); border-color: var(--border-mid); }
+.kpi-lbl  { font-size: 10px; font-weight: 600; color: var(--slate); letter-spacing: .3px; text-transform: uppercase; margin-bottom: 8px; }
+.kpi-num  { font-size: 28px; font-weight: 700; color: var(--black); line-height: 1; letter-spacing: -.03em; transition: color .3s; }
+.kpi-unit { font-size: 11px; font-weight: 400; color: var(--slate); margin-left: 2px; }
+.kpi-sub  { font-size: 10px; font-weight: 400; color: var(--slate); margin-top: 5px; }
+.kpi-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-top: 10px; padding: 4px 10px; border-radius: var(--r-pill);
+  font-size: 11px; font-weight: 600;
+  transition: background .3s, color .3s;
+}
+.kpi-badge.good  { background: rgba(71,209,255,.15); color: #059ab8; }
+.kpi-badge.bad   { background: rgba(83,172,255,.15); color: #2070c8; }
+.kpi-badge.warn  { background: rgba(136,124,255,.13); color: var(--purple); }
+.kpi-badge.neu   { background: var(--bg-muted); color: var(--slate); }
+
+/* ─────────────────────────────
+   SECTION HEADERS
+───────────────────────────── */
+.sec-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.sec-title { font-size: 14px; font-weight: 700; color: var(--black); letter-spacing: -.01em; }
+.sec-desc  { font-size: 11px; font-weight: 400; color: var(--slate); margin-top: 2px; }
+.sec-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+
+/* ─────────────────────────────
+   2-COL GRID / CHART WRAPPERS
+───────────────────────────── */
+.ch2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ch-wrap { position: relative; }
+.h-160 { height: 160px; }
+.h-180 { height: 180px; }
+.h-200 { height: 200px; }
+.h-220 { height: 220px; }
+.h-240 { height: 240px; }
+.chart-label { font-size: 11px; font-weight: 600; color: var(--slate); letter-spacing: .2px; margin-bottom: 8px; }
+
+/* ─────────────────────────────
+   ITEM PROGRESS BARS
+───────────────────────────── */
+.ibar-list { display: flex; flex-direction: column; gap: 11px; }
+.ibar-row  { display: flex; align-items: center; gap: 10px; }
+.ibar-name { width: 128px; flex-shrink: 0; font-size: 11px; font-weight: 500; color: var(--slate); text-align: right; line-height: 1.3; }
+.ibar-track {
+  flex: 1; height: 10px; background: var(--bg-muted);
+  border-radius: var(--r-pill); position: relative; overflow: hidden;
+}
+.ibar-fill {
+  height: 100%; border-radius: var(--r-pill); position: absolute; left: 0; top: 0;
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+.ibar-fill-cmp {
+  height: 100%; border-radius: var(--r-pill); position: absolute; left: 0; top: 0;
+  background: var(--slate); opacity: .22;
+  transition: width .5s cubic-bezier(.4,0,.2,1);
+}
+.ibar-pct { width: 40px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--black); }
+.ibar-cmp { width: 34px; flex-shrink: 0; font-size: 10px; font-weight: 400; color: var(--slate); }
+.legend-row { display: flex; gap: 14px; margin-top: 10px; }
+.leg-item   { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500; color: var(--slate); }
+.leg-dot    { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+/* ─────────────────────────────
+   COMPARISON TABLE
+───────────────────────────── */
+.cmp-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.cmp-tbl th { background: var(--bg-muted); color: var(--slate); padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; border-bottom: 2px solid var(--border); }
+.cmp-tbl td { padding: 8px 10px; border-bottom: 1px solid var(--bg-muted); vertical-align: middle; font-weight: 500; }
+.cmp-tbl tr:last-child td { border-bottom: none; }
+.cmp-tbl tr.sel td { background: var(--purple-soft); }
+.cmp-tbl tr.sel td:first-child { color: var(--purple); font-weight: 700; }
+.cmp-tbl tr.cmp td { background: var(--cyan-soft); }
+.rank-circle {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700;
+  background: var(--bg-muted); color: var(--slate);
+}
+.rank-circle.r1 { background: var(--purple-soft); color: var(--purple); }
+.rank-circle.r2 { background: var(--blue-soft);   color: #2070c8; }
+.inline-bar { height: 7px; border-radius: var(--r-pill); display: inline-block; background: var(--border-mid); transition: width .4s; }
+.inline-bar.sel { background: var(--purple); }
+
+/* ─────────────────────────────
+   SIMULATION PANEL
+───────────────────────────── */
+.sim-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.sim-icon {
+  width: 34px; height: 34px; border-radius: var(--r-sm);
+  background: var(--purple-soft); display: flex; align-items: center; justify-content: center;
+  font-size: 17px; flex-shrink: 0;
+}
+.sim-title { font-size: 14px; font-weight: 700; color: var(--black); }
+.sim-sub   { font-size: 11px; font-weight: 400; color: var(--slate); margin-top: 1px; }
+.field-lbl { font-size: 12px; font-weight: 600; color: var(--black); margin-bottom: 7px; }
+.sim-select {
+  width: 100%; height: 42px; padding: 0 30px 0 12px;
+  border: 1.5px solid var(--border); border-radius: var(--r-md);
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%23556476' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E") no-repeat right 10px center;
+  -webkit-appearance: none; font-size: 13px; font-weight: 500; color: var(--black);
+  cursor: pointer; outline: none;
+  transition: border-color var(--tr), box-shadow var(--tr);
+}
+.sim-select:focus { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+
+/* Slider */
+.sl-block { display: flex; flex-direction: column; gap: 7px; }
+.sl-row   { display: flex; justify-content: space-between; align-items: baseline; }
+.sl-name  { font-size: 12px; font-weight: 600; color: var(--black); }
+.sl-val   { font-size: 13px; font-weight: 700; color: var(--purple); min-width: 52px; text-align: right; }
+input[type="range"] { width: 100%; appearance: none; -webkit-appearance: none; background: transparent; }
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 4px; background: var(--border); border-radius: var(--r-pill);
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 18px; height: 18px; margin-top: -7px;
+  border-radius: 50%; background: var(--purple); border: 3px solid #fff;
+  box-shadow: 0 2px 8px rgba(136,124,255,.35); cursor: pointer;
+  transition: transform .15s;
+}
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.2); }
+input[type="range"]::-moz-range-track { height: 4px; background: var(--border); border-radius: var(--r-pill); }
+input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px solid #fff; border-radius: 50%; background: var(--purple); cursor: pointer; }
+.sl-ticks { display: flex; justify-content: space-between; font-size: 10px; font-weight: 500; color: var(--slate); }
+.divider  { height: 1px; background: var(--border); margin: 16px 0; }
+
+/* ─────────────────────────────
+   RESULT CARDS
+───────────────────────────── */
+.res-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+.res-card {
+  background: var(--bg-muted); border: 1.5px solid var(--border);
+  border-radius: var(--r-md); padding: 13px 13px 11px;
+  transition: border-color .3s, background .3s;
+}
+.res-card.changed  { border-color: var(--purple); background: var(--purple-soft); }
+.res-card.improved { border-color: var(--cyan);   background: var(--cyan-soft); }
+.rc-lbl    { font-size: 9px; font-weight: 700; color: var(--slate); letter-spacing: .4px; text-transform: uppercase; margin-bottom: 6px; }
+.rc-before { font-size: 11px; font-weight: 400; color: var(--slate); text-decoration: line-through; margin-bottom: 2px; }
+.rc-after  { font-size: 20px; font-weight: 700; color: var(--black); line-height: 1.1; transition: color .3s; }
+.rc-after .rc-unit { font-size: 10px; font-weight: 400; color: var(--slate); margin-left: 2px; }
+.rc-after.up-bad   { color: var(--blue); }
+.rc-after.down-good{ color: #059ab8; }
+.rc-delta {
+  display: inline-flex; align-items: center;
+  margin-top: 6px; padding: 3px 8px; border-radius: var(--r-pill);
+  font-size: 10px; font-weight: 700;
+}
+.rc-delta.pos { background: rgba(83,172,255,.15); color: #2070c8; }
+.rc-delta.neg { background: rgba(71,209,255,.15); color: #059ab8; }
+.rc-delta.neu { background: var(--border); color: var(--slate); }
+
+/* ─────────────────────────────
+   REPORT BUTTON & OUTPUT
+───────────────────────────── */
+.btn-report {
+  width: 100%; appearance: none; border: 0; cursor: pointer;
+  background: var(--purple); color: #fff;
+  border-radius: var(--r-md); height: 46px;
+  font-size: 13px; font-weight: 700; font-family: var(--font);
+  letter-spacing: .1px; display: flex; align-items: center; justify-content: center; gap: 8px;
+  box-shadow: 0 4px 16px rgba(136,124,255,.32);
+  transition: background var(--tr), box-shadow var(--tr), transform var(--tr);
+}
+.btn-report:hover  { background: #7a6ff0; box-shadow: 0 6px 22px rgba(136,124,255,.42); }
+.btn-report:active { transform: translateY(1px); }
+
+.report-out {
+  display: none; margin-top: 14px;
+  border-radius: var(--r-md); padding: 14px 16px;
+  background: var(--cyan-soft); border: 1.5px solid rgba(71,209,255,.35);
+  font-size: 12px; font-weight: 400; line-height: 1.75; color: #056678;
+}
+.report-out.vis { display: block; animation: fadeUp .3s ease; }
+.report-out p   { margin: 0 0 5px; }
+.report-out p:last-child { margin-bottom: 0; }
+.report-out strong { font-weight: 700; color: #044e5c; }
+
+.disclaimer {
+  text-align: center; padding: 10px 14px;
+  background: rgba(85,100,118,.06); border: 1px solid var(--border);
+  border-radius: var(--r-md); font-size: 10px; font-weight: 500; color: var(--slate);
+  line-height: 1.7;
+}
+.data-note { font-size: 10px; font-weight: 400; color: var(--slate); text-align: right; margin-top: 10px; }
+
+/* ─────────────────────────────
+   ANIMATIONS
+───────────────────────────── */
+@keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes numPop { 0%,100% { transform: scale(1); } 40% { transform: scale(1.07); } }
+.pop { animation: numPop .3s ease; }
+
+/* PC固定レイアウト — レスポンシブ崩れを防ぐ */
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="app-header">
+  <div class="hd-brand">
+    <div class="hd-logo">
+      <!-- Recycling icon -->
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4l2.5 4.5H9.5L12 4zm0 16l-2.5-4.5h5L12 20zM4 12l4.5-2.5v5L4 12zm16 0l-4.5 2.5v-5L20 12z" fill="white" opacity=".9"/>
+        <circle cx="12" cy="12" r="2" fill="white"/>
+      </svg>
+    </div>
+    <div>
+      <div class="hd-brand-name">地域循環インパクト・シミュレーター</div>
+      <div class="hd-brand-sub">Ministry of the Environment — 一般廃棄物処理実態調査</div>
+    </div>
+  </div>
+
+  <div class="hd-spacer"></div>
+
+  <div class="hd-controls">
+    <div class="ctrl-wrap">
+      <div class="ctrl-lbl">対象自治体</div>
+      <select class="hd-select" id="selMain" onchange="onMainChange()">
+        <option value="yokohama">横浜市（神奈川）</option>
+        <option value="nagoya">名古屋市（愛知）</option>
+        <option value="osaka">大阪市（大阪）</option>
+        <option value="sapporo">札幌市（北海道）</option>
+        <option value="sendai">仙台市（宮城）</option>
+        <option value="hiroshima">広島市（広島）</option>
+        <option value="fukuoka">福岡市（福岡）</option>
+        <option value="kyoto">京都市（京都）</option>
+        <option value="tokyo23">東京都23区</option>
+      </select>
+    </div>
+    <div class="ctrl-wrap">
+      <div class="ctrl-lbl">比較対象</div>
+      <select class="hd-select" id="selCmp" onchange="onCmpChange()">
+        <option value="nagoya">名古屋市</option>
+        <option value="osaka">大阪市</option>
+        <option value="yokohama">横浜市</option>
+        <option value="sapporo">札幌市</option>
+        <option value="sendai">仙台市</option>
+        <option value="hiroshima">広島市</option>
+        <option value="fukuoka">福岡市</option>
+        <option value="kyoto">京都市</option>
+        <option value="tokyo23">東京都23区</option>
+      </select>
+    </div>
+    <div class="ctrl-wrap">
+      <div class="ctrl-lbl">年度</div>
+      <select class="hd-select" style="width:116px;">
+        <option>令和6年度</option>
+        <option>令和5年度</option>
+        <option>令和4年度</option>
+      </select>
+    </div>
+    <div class="hd-pill">
+      <div class="hd-pill-dot"></div>
+      令和6年度実績
+    </div>
+  </div>
+</header>
+
+<!-- ═══ BODY ═══ -->
+<div class="app-shell">
+<div class="container">
+<div class="dash-grid">
+
+  <!-- ══════ LEFT ══════ -->
+  <div class="left-col">
+
+    <!-- KPI ROW -->
+    <div class="kpi-row">
+      <div class="kpi-hero">
+        <div class="kpi-hero-lbl">ごみ総排出量</div>
+        <div>
+          <span class="kpi-hero-num" id="heroWaste">—</span>
+          <span class="kpi-hero-unit">千トン/年</span>
+        </div>
+        <div class="kpi-hero-sub" id="heroSub">—</div>
+        <div class="kpi-hero-badge" id="heroBadge">—</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-lbl">リサイクル率</div>
+        <div style="display:flex;align-items:baseline;gap:3px;">
+          <span class="kpi-num" id="kpiRecycle">—</span>
+          <span class="kpi-unit">%</span>
+        </div>
+        <div class="kpi-sub">全国政令市平均 18.9%</div>
+        <div class="kpi-badge neu" id="kpiBadgeRecycle">—</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-lbl">1人1日排出量</div>
+        <div style="display:flex;align-items:baseline;gap:3px;">
+          <span class="kpi-num" id="kpiPerCap">—</span>
+          <span class="kpi-unit">g/日</span>
+        </div>
+        <div class="kpi-sub">全国平均 853 g/日</div>
+        <div class="kpi-badge neu" id="kpiBadgePerCap">—</div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-lbl">改善余地・最大品目</div>
+        <div class="kpi-num" id="kpiWorst" style="font-size:15px;line-height:1.4;">—</div>
+        <div class="kpi-sub" id="kpiWorstSub">現状レート</div>
+        <div class="kpi-badge warn" id="kpiBadgeWorst">—</div>
+      </div>
+    </div>
+
+    <!-- TREND CHARTS -->
+    <div class="card">
+      <div class="card-hd">
+        <div>
+          <div class="card-title">排出量・リサイクル率 時系列推移</div>
+          <div class="card-desc" id="trendDesc">—</div>
+        </div>
+        <span class="tag">2020〜2024年度</span>
+      </div>
+      <div class="ch2">
+        <div>
+          <div class="chart-label">廃棄物量（千トン）</div>
+          <div class="ch-wrap h-180"><canvas id="chartWaste"></canvas></div>
+        </div>
+        <div>
+          <div class="chart-label">リサイクル率（%）</div>
+          <div class="ch-wrap h-180"><canvas id="chartRecycle"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ITEM RATES -->
+    <div class="card">
+      <div class="card-hd">
+        <div>
+          <div class="card-title">品目別リサイクル率</div>
+          <div class="card-desc">令和6年度実績 ― 比較対象との差異</div>
+        </div>
+        <div class="sec-actions">
+          <span class="tag tag-purple" id="tagMain">—</span>
+          <span class="tag" id="tagCmp">—</span>
+        </div>
+      </div>
+      <div class="ch2" style="gap:22px;align-items:start;">
+        <div>
+          <div class="ibar-list" id="ibarList"></div>
+          <div class="legend-row">
+            <div class="leg-item"><div class="leg-dot" style="background:var(--purple)"></div><span id="legMain">—</span></div>
+            <div class="leg-item"><div class="leg-dot" style="background:var(--slate);opacity:.5"></div><span id="legCmp">—（比較）</span></div>
+          </div>
+        </div>
+        <div class="ch-wrap h-220"><canvas id="chartItems"></canvas></div>
+      </div>
+      <div class="data-note">※ 品目別リサイクル率は環境省一般廃棄物処理実態調査（R6）をもとに試算</div>
+    </div>
+
+    <!-- CITY COMPARISON -->
+    <div class="card">
+      <div class="card-hd">
+        <div>
+          <div class="card-title">主要都市間比較</div>
+          <div class="card-desc">政令指定都市等 ― 令和6年度実績</div>
+        </div>
+        <span class="tag tag-purple" id="tagCmpTitle">—</span>
+      </div>
+      <div class="ch2" style="margin-bottom:18px;">
+        <div>
+          <div class="chart-label">廃棄物総排出量（千トン）</div>
+          <div class="ch-wrap h-240"><canvas id="chartCmpWaste"></canvas></div>
+        </div>
+        <div>
+          <div class="chart-label">リサイクル率（%）</div>
+          <div class="ch-wrap h-240"><canvas id="chartCmpRecycle"></canvas></div>
+        </div>
+      </div>
+      <table class="cmp-tbl">
+        <thead><tr>
+          <th>順位</th><th>自治体</th><th>人口</th>
+          <th>廃棄物（千t）</th><th>リサイクル率</th><th>1人1日</th><th>排出量比</th>
+        </tr></thead>
+        <tbody id="cmpTbody"></tbody>
+      </table>
+      <div class="data-note">出典：環境省 一般廃棄物処理実態調査（令和6年度実績）</div>
+    </div>
+
+  </div><!-- /left-col -->
+
+  <!-- ══════ RIGHT ══════ -->
+  <div class="right-col">
+
+    <!-- CONTROLS -->
+    <div class="card">
+      <div class="sim-hd">
+        <div class="sim-icon">⚙️</div>
+        <div>
+          <div class="sim-title">効果シミュレーション</div>
+          <div class="sim-sub">スライダーを動かして施策効果を試算</div>
+        </div>
+      </div>
+
+      <div style="margin-bottom:18px;">
+        <div class="sl-block">
+          <div class="sl-row">
+            <span class="sl-name">人口変化率</span>
+            <span class="sl-val" id="valPop">0%</span>
+          </div>
+          <input type="range" id="slPop" min="-30" max="10" value="0" step="1" oninput="onSim()">
+          <div class="sl-ticks"><span>-30%</span><span>-10%</span><span>0%</span><span>+10%</span></div>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div style="margin-bottom:12px;">
+        <div class="field-lbl">改善する品目</div>
+        <select class="sim-select" id="simItem" onchange="onSim()">
+          <option value="plastic">プラスチック容器包装</option>
+          <option value="paper">紙類</option>
+          <option value="pet">ペットボトル</option>
+          <option value="metal">缶・金属類</option>
+          <option value="glass">びん・ガラス類</option>
+        </select>
+      </div>
+
+      <div class="sl-block">
+        <div class="sl-row">
+          <span class="sl-name">品目リサイクル率 改善幅</span>
+          <span class="sl-val" id="valItem">+0pt</span>
+        </div>
+        <input type="range" id="slItem" min="0" max="30" value="0" step="1" oninput="onSim()">
+        <div class="sl-ticks"><span>+0pt</span><span>+15pt</span><span>+30pt</span></div>
+      </div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="card">
+      <div class="card-hd" style="margin-bottom:14px;">
+        <div>
+          <div class="card-title">シミュレーション結果</div>
+          <div class="card-desc">スライダー操作でリアルタイム更新</div>
+        </div>
+        <span class="tag" id="simStatusTag">待機中</span>
+      </div>
+
+      <div class="res-grid">
+        <div class="res-card" id="rcTotal">
+          <div class="rc-lbl">ごみ総排出量</div>
+          <div class="rc-before" id="rcTotalPrev">—</div>
+          <div class="rc-after" id="rcTotalAfter">—<span class="rc-unit">千t</span></div>
+          <div class="rc-delta neu" id="rcTotalDelta">変化なし</div>
+        </div>
+        <div class="res-card" id="rcDisposal">
+          <div class="rc-lbl">処分対象廃棄物</div>
+          <div class="rc-before" id="rcDisposalPrev">—</div>
+          <div class="rc-after" id="rcDisposalAfter">—<span class="rc-unit">千t</span></div>
+          <div class="rc-delta neu" id="rcDisposalDelta">変化なし</div>
+        </div>
+        <div class="res-card" id="rcRecycle">
+          <div class="rc-lbl">リサイクル率</div>
+          <div class="rc-before" id="rcRecyclePrev">—</div>
+          <div class="rc-after" id="rcRecycleAfter">—<span class="rc-unit">%</span></div>
+          <div class="rc-delta neu" id="rcRecycleDelta">変化なし</div>
+        </div>
+        <div class="res-card" id="rcItem">
+          <div class="rc-lbl" id="rcItemLbl">品目レート</div>
+          <div class="rc-before" id="rcItemPrev">—</div>
+          <div class="rc-after" id="rcItemAfter">—<span class="rc-unit">%</span></div>
+          <div class="rc-delta neu" id="rcItemDelta">変化なし</div>
+        </div>
+      </div>
+
+      <div class="ch-wrap h-160">
+        <canvas id="chartSim"></canvas>
+      </div>
+    </div>
+
+    <!-- REPORT -->
+    <div class="card">
+      <div class="card-hd" style="margin-bottom:14px;">
+        <div class="card-title">課題・効果レポート</div>
+      </div>
+      <button class="btn-report" onclick="genReport()">
+        <span>📄</span> レポートを生成する
+      </button>
+      <div class="report-out" id="reportOut"></div>
+    </div>
+
+    <div class="disclaimer">
+      ※ 本シミュレーションは簡易モデルです。<br>
+      実際の施策検討には詳細な調査・分析が必要です。
+    </div>
+
+  </div><!-- /right-col -->
+
+</div><!-- /dash-grid -->
+</div><!-- /container -->
+</div><!-- /app-shell -->
+
+<script>
+// ═══════════════════════════════════════════════
+// BRAND COLORS (JS mirror)
+// ═══════════════════════════════════════════════
+const C = {
+  purple:     '#887CFF',
+  purpleA:    'rgba(136,124,255,.65)',
+  purpleS:    'rgba(136,124,255,.12)',
+  cyan:       '#47D1FF',
+  cyanA:      'rgba(71,209,255,.6)',
+  cyanS:      'rgba(71,209,255,.12)',
+  blue:       '#53ACFF',
+  blueA:      'rgba(83,172,255,.6)',
+  blueS:      'rgba(83,172,255,.12)',
+  slate:      '#556476',
+  slateLight: 'rgba(85,100,118,.2)',
+  grid:       '#E8ECF4',
+};
+
+// ═══════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════
+const ITEMS = {
+  plastic: { label: 'プラスチック容器包装', weight: 0.10 },
+  paper:   { label: '紙類',                 weight: 0.25 },
+  pet:     { label: 'ペットボトル',         weight: 0.02 },
+  metal:   { label: '缶・金属類',            weight: 0.04 },
+  glass:   { label: 'びん・ガラス類',        weight: 0.04 },
+};
+
+const DATA = {
+  yokohama:  { name:'横浜市',   pref:'神奈川県', pop:3771063, waste:1034.8, recycleRate:21.9, perCap:751.8, itemRates:{plastic:45.6,paper:44.4,pet:67.3,metal:47.4,glass:37.6}, wasteTrend:[1077,1064,1052,1042,1034.8], recycleTrend:[19.4,19.9,20.5,21.2,21.9] },
+  nagoya:    { name:'名古屋市', pref:'愛知県',   pop:2301283, waste:699.6,  recycleRate:27.1, perCap:832.9, itemRates:{plastic:31.6,paper:24.2,pet:56.9,metal:41.8,glass:42.2}, wasteTrend:[729,718,710,703,699.6],     recycleTrend:[24.6,25.0,25.6,26.3,27.1] },
+  osaka:     { name:'大阪市',   pref:'大阪府',   pop:2791907, waste:971.9,  recycleRate:9.2,  perCap:953.7, itemRates:{plastic:16.1,paper:10.1,pet:33.2,metal:15.0,glass:19.3}, wasteTrend:[1012,998,988,979,971.9],    recycleTrend:[7.2,7.6,8.0,8.5,9.2] },
+  sapporo:   { name:'札幌市',   pref:'北海道',   pop:1968265, waste:570.3,  recycleRate:24.0, perCap:793.8, itemRates:{plastic:47.0,paper:29.8,pet:72.8,metal:41.5,glass:41.5}, wasteTrend:[594,585,578,573,570.3],     recycleTrend:[21.5,22.0,22.5,23.2,24.0] },
+  sendai:    { name:'仙台市',   pref:'宮城県',   pop:1064910, waste:356.7,  recycleRate:17.5, perCap:917.8, itemRates:{plastic:33.1,paper:30.6,pet:70.9,metal:41.7,glass:47.3}, wasteTrend:[372,366,362,358,356.7],     recycleTrend:[15.0,15.5,16.0,16.7,17.5] },
+  hiroshima: { name:'広島市',   pref:'広島県',   pop:1174414, waste:332.0,  recycleRate:14.6, perCap:774.6, itemRates:{plastic:40.2,paper:16.0,pet:34.5,metal:29.8,glass:32.8}, wasteTrend:[346,341,337,334,332.0],     recycleTrend:[12.1,12.5,13.0,13.7,14.6] },
+  fukuoka:   { name:'福岡市',   pref:'福岡県',   pop:1656737, waste:515.1,  recycleRate:13.2, perCap:851.7, itemRates:{plastic:20.0,paper:20.6,pet:40.5,metal:32.3,glass:16.6}, wasteTrend:[537,529,523,518,515.1],     recycleTrend:[10.7,11.1,11.5,12.3,13.2] },
+  kyoto:     { name:'京都市',   pref:'京都府',   pop:1437377, waste:383.8,  recycleRate:12.1, perCap:731.6, itemRates:{plastic:27.4,paper:11.7,pet:40.3,metal:24.9,glass:31.1}, wasteTrend:[400,395,391,387,383.8],     recycleTrend:[9.6,10.0,10.5,11.2,12.1] },
+  tokyo23:   { name:'東京都23区',pref:'東京都',  pop:9725730, waste:2936.5, recycleRate:21.5, perCap:827.2, itemRates:{plastic:14.4,paper:27.4,pet:73.7,metal:36.3,glass:65.4}, wasteTrend:[3060,3012,2984,2956,2936.5], recycleTrend:[19.0,19.5,20.0,20.7,21.5] },
+};
+const YEARS = ['2020','2021','2022','2023','2024'];
+
+// ═══════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════
+let mainKey = 'yokohama', cmpKey = 'nagoya';
+let simPop = 0, simItemKey = 'plastic', simItemDelta = 0;
+const CH = {};
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => { syncDropdowns(); buildAll(); });
+
+function buildAll() {
+  const m = DATA[mainKey], c = DATA[cmpKey];
+  renderKPIs(m);
+  buildTrend(m);
+  buildItemBars(m, c);
+  buildItemChart(m, c);
+  buildCmpCharts();
+  buildCmpTable();
+  initSimChart();
+  onSim();
+  setText('tagMain', m.name); setText('tagCmp', c.name + '（比較）');
+  setText('legMain', m.name); setText('legCmp', c.name);
+  setText('trendDesc', `${m.name} — 2020〜2024年度推移`);
+  setText('tagCmpTitle', `${m.name} vs 主要都市`);
+}
+
+// ═══════════════════════════════════════════════
+// KPIs
+// ═══════════════════════════════════════════════
+function renderKPIs(m) {
+  setText('heroWaste', m.waste.toLocaleString());
+  setText('heroSub', `人口 ${(m.pop/10000).toFixed(0)}万人 ｜ ${m.pref}`);
+  setText('heroBadge', `1人1日 ${m.perCap} g/日`);
+
+  setText('kpiRecycle', m.recycleRate);
+  const rd = m.recycleRate - 18.9;
+  setBadge('kpiBadgeRecycle', rd >= 0 ? 'good' : 'bad', (rd >= 0 ? '▲ +' : '▼ ') + Math.abs(rd).toFixed(1) + 'pt 全国比');
+
+  setText('kpiPerCap', m.perCap.toLocaleString());
+  const pd = m.perCap - 853;
+  setBadge('kpiBadgePerCap', pd <= 0 ? 'good' : 'bad', (pd <= 0 ? '▼ ' : '▲ +') + Math.abs(pd).toFixed(0) + 'g 全国比');
+
+  const oppKey = Object.keys(ITEMS).sort((a,b) =>
+    ITEMS[b].weight * (100 - m.itemRates[b]) - ITEMS[a].weight * (100 - m.itemRates[a])
+  )[0];
+  setText('kpiWorst', ITEMS[oppKey].label);
+  setText('kpiWorstSub', `現状 ${m.itemRates[oppKey]}%`);
+  setBadge('kpiBadgeWorst', 'warn', `改善余地 +${(100 - m.itemRates[oppKey]).toFixed(0)}pt`);
+}
+
+function setBadge(id, cls, txt) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `kpi-badge ${cls}`;
+  el.textContent = txt;
+}
+
+// ═══════════════════════════════════════════════
+// TREND CHARTS
+// ═══════════════════════════════════════════════
+function buildTrend(m) {
+  killChart('chartWaste'); killChart('chartRecycle');
+
+  const opts = (unit) => ({
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { font: { size: 10, family: 'Manrope' }, color: C.slate }, grid: { color: C.grid } },
+      y: { ticks: { font: { size: 10, family: 'Manrope' }, color: C.slate, callback: v => v + unit }, grid: { color: C.grid } }
+    }
+  });
+
+  CH.waste = new Chart(document.getElementById('chartWaste'), {
+    type: 'line',
+    data: { labels: YEARS, datasets: [{ data: m.wasteTrend,
+      borderColor: C.purple, backgroundColor: C.purpleS,
+      borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: C.purple,
+      pointBorderColor: '#fff', pointBorderWidth: 2, tension: .35, fill: true
+    }]},
+    options: opts('千t')
+  });
+
+  CH.recycle = new Chart(document.getElementById('chartRecycle'), {
+    type: 'line',
+    data: { labels: YEARS, datasets: [{ data: m.recycleTrend,
+      borderColor: C.cyan, backgroundColor: C.cyanS,
+      borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: C.cyan,
+      pointBorderColor: '#fff', pointBorderWidth: 2, tension: .35, fill: true
+    }]},
+    options: opts('%')
+  });
+}
+
+// ═══════════════════════════════════════════════
+// ITEM BARS
+// ═══════════════════════════════════════════════
+function buildItemBars(m, cmp) {
+  const container = document.getElementById('ibarList');
+  container.innerHTML = '';
+  Object.keys(ITEMS).forEach(k => {
+    const base = m.itemRates[k];
+    const val  = simItemKey === k ? Math.min(100, base + simItemDelta) : base;
+    const cmpV = cmp.itemRates[k];
+    // Color: high→cyan, mid→purple, low→blue
+    const fill = val >= 60 ? C.cyan : val >= 40 ? C.purple : C.blue;
+    const row = document.createElement('div');
+    row.className = 'ibar-row';
+    row.innerHTML = `
+      <div class="ibar-name">${ITEMS[k].label}</div>
+      <div class="ibar-track">
+        <div class="ibar-fill" style="width:${val}%;background:${fill}"></div>
+        <div class="ibar-fill-cmp" style="width:${cmpV}%"></div>
+      </div>
+      <div class="ibar-pct">${val}%</div>
+      <div class="ibar-cmp">(${cmpV}%)</div>
+    `;
+    container.appendChild(row);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// ITEM CHART
+// ═══════════════════════════════════════════════
+function buildItemChart(m, cmp) {
+  killChart('chartItems');
+  const labels   = Object.keys(ITEMS).map(k => ITEMS[k].label);
+  const mainData = Object.keys(ITEMS).map(k =>
+    simItemKey === k ? Math.min(100, m.itemRates[k] + simItemDelta) : m.itemRates[k]
+  );
+  const cmpData = Object.keys(ITEMS).map(k => cmp.itemRates[k]);
+
+  CH.items = new Chart(document.getElementById('chartItems'), {
+    type: 'bar', indexAxis: 'y',
+    data: { labels, datasets: [
+      { label: m.name,   data: mainData, backgroundColor: C.purpleA, borderRadius: 4, barPercentage: .6 },
+      { label: cmp.name, data: cmpData,  backgroundColor: C.slateLight, borderRadius: 4, barPercentage: .6 }
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 10, family: 'Manrope' }, boxWidth: 10, padding: 8, color: C.slate } } },
+      scales: {
+        x: { max: 100, ticks: { font:{size:9,family:'Manrope'}, color: C.slate, callback: v => v + '%' }, grid: { color: C.grid } },
+        y: { ticks: { font:{size:10,family:'Manrope'}, color: '#0F172A' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// COMPARISON CHARTS
+// ═══════════════════════════════════════════════
+function buildCmpCharts() {
+  killChart('chartCmpWaste'); killChart('chartCmpRecycle');
+  const keys    = Object.keys(DATA);
+  const names   = keys.map(k => DATA[k].name);
+  const wastes  = keys.map(k => DATA[k].waste);
+  const recycles = keys.map(k => DATA[k].recycleRate);
+
+  const bgW = keys.map(k => k === mainKey ? C.purple : k === cmpKey ? C.blue : C.slateLight);
+  const bgR = keys.map(k => k === mainKey ? C.cyan   : k === cmpKey ? C.blue : C.slateLight);
+
+  const baseOpts = (unit) => ({
+    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { font:{size:9,family:'Manrope'}, color: C.slate, callback: v => v + unit }, grid: { color: C.grid } },
+      y: { ticks: { font:{size:10,family:'Manrope'}, color: '#0F172A' }, grid: { display: false } }
+    }
+  });
+
+  CH.cmpWaste = new Chart(document.getElementById('chartCmpWaste'), {
+    type: 'bar',
+    data: { labels: names, datasets: [{ data: wastes, backgroundColor: bgW, borderRadius: 4 }]},
+    options: baseOpts('千t')
+  });
+
+  CH.cmpRecycle = new Chart(document.getElementById('chartCmpRecycle'), {
+    type: 'bar',
+    data: { labels: names, datasets: [{ data: recycles, backgroundColor: bgR, borderRadius: 4 }]},
+    options: baseOpts('%')
+  });
+}
+
+// ═══════════════════════════════════════════════
+// COMPARISON TABLE
+// ═══════════════════════════════════════════════
+function buildCmpTable() {
+  const tbody  = document.getElementById('cmpTbody');
+  tbody.innerHTML = '';
+  const sorted = Object.keys(DATA).map(k => ({k,...DATA[k]}))
+    .sort((a,b) => b.recycleRate - a.recycleRate);
+  const maxW = Math.max(...Object.values(DATA).map(d => d.waste));
+
+  sorted.forEach((d, i) => {
+    const rank = i + 1;
+    const isSel = d.k === mainKey, isCmp = d.k === cmpKey;
+    const bw = Math.round(d.waste / maxW * 78);
+    const tr = document.createElement('tr');
+    if (isSel) tr.classList.add('sel');
+    if (isCmp) tr.classList.add('cmp');
+    tr.innerHTML = `
+      <td><span class="rank-circle ${rank===1?'r1':rank===2?'r2':''}">${rank}</span></td>
+      <td style="font-weight:${isSel?700:500}">${d.name}${isSel?' ★':''}${isCmp?' ◆':''}</td>
+      <td>${(d.pop/10000).toFixed(0)}万人</td>
+      <td>${d.waste.toLocaleString()}</td>
+      <td style="font-weight:700;color:${isSel?C.purple:isCmp?C.blue:'inherit'}">${d.recycleRate}%</td>
+      <td>${d.perCap} g</td>
+      <td><span class="inline-bar ${isSel?'sel':''}" style="width:${bw}px"></span></td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// SIM CHART
+// ═══════════════════════════════════════════════
+function initSimChart() {
+  killChart('chartSim');
+  const m = DATA[mainKey];
+  const baseD = +(m.waste * (1 - m.recycleRate / 100)).toFixed(1);
+
+  CH.sim = new Chart(document.getElementById('chartSim'), {
+    type: 'bar',
+    data: {
+      labels: ['総排出量（千t）', '処分対象廃棄物（千t）', 'リサイクル率（%）'],
+      datasets: [
+        { label:'現状',      data: [m.waste, baseD, m.recycleRate], backgroundColor: C.slateLight, borderRadius: 5 },
+        { label:'シミュレーション後', data: [m.waste, baseD, m.recycleRate], backgroundColor: C.purpleA, borderRadius: 5 }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 10, family: 'Manrope' }, boxWidth: 10, padding: 8, color: C.slate } } },
+      scales: {
+        x: { ticks: { font:{size:9,family:'Manrope'} }, grid: { display: false } },
+        y: { ticks: { font:{size:9,family:'Manrope'}, color: C.slate }, grid: { color: C.grid } }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════
+// SIMULATION
+// ═══════════════════════════════════════════════
+function onSim() {
+  const m = DATA[mainKey];
+  simPop       = parseInt(document.getElementById('slPop').value);
+  simItemDelta = parseInt(document.getElementById('slItem').value);
+  simItemKey   = document.getElementById('simItem').value;
+
+  setText('valPop',  (simPop >= 0 ? '+' : '') + simPop + '%');
+  setText('valItem', '+' + simItemDelta + 'pt');
+
+  // Calculations
+  const popFactor   = 1 + simPop / 100;
+  const newTotal    = +(m.waste * popFactor).toFixed(1);
+  const itemW       = ITEMS[simItemKey].weight;
+  const rDelta      = +(itemW * simItemDelta).toFixed(2);
+  const newRecycle  = +Math.min(100, m.recycleRate + rDelta).toFixed(1);
+  const baseDisp    = +(m.waste * (1 - m.recycleRate / 100)).toFixed(1);
+  const newDisp     = +(newTotal  * (1 - newRecycle  / 100)).toFixed(1);
+  const newItemRate = Math.min(100, m.itemRates[simItemKey] + simItemDelta);
+
+  const hasChange = simPop !== 0 || simItemDelta > 0;
+  const stEl = document.getElementById('simStatusTag');
+  stEl.textContent = hasChange ? '試算中' : '待機中';
+  stEl.className   = hasChange ? 'tag tag-purple' : 'tag';
+
+  setRC('rcTotal',    m.waste       + ' 千t', newTotal,    '千t', m.waste,              true,  simPop !== 0);
+  setRC('rcDisposal', baseDisp      + ' 千t', newDisp,     '千t', baseDisp,             true,  hasChange);
+  setRC('rcRecycle',  m.recycleRate + '%',     newRecycle,  '%',   m.recycleRate,        false, simItemDelta > 0);
+
+  setText('rcItemLbl', ITEMS[simItemKey].label);
+  setRC('rcItem',     m.itemRates[simItemKey] + '%', newItemRate, '%', m.itemRates[simItemKey], false, simItemDelta > 0);
+
+  if (CH.sim) {
+    CH.sim.data.datasets[0].data = [m.waste, baseDisp, m.recycleRate];
+    CH.sim.data.datasets[1].data = [newTotal, newDisp, newRecycle];
+    CH.sim.update('active');
+  }
+
+  buildItemBars(m, DATA[cmpKey]);
+  buildItemChart(m, DATA[cmpKey]);
+}
+
+function setRC(id, prevTxt, afterVal, unit, base, lowerIsBetter, isActive) {
+  const diff  = afterVal - base;
+  const pct   = base ? (diff / base * 100) : 0;
+  const card  = document.getElementById(id);
+  const after = document.getElementById(id + 'After');
+  const prev  = document.getElementById(id + 'Prev');
+  const delta = document.getElementById(id + 'Delta');
+
+  prev.textContent = prevTxt;
+  after.innerHTML  = afterVal + `<span class="rc-unit">${unit}</span>`;
+
+  if (Math.abs(diff) < 0.01 || !isActive) {
+    after.className  = 'rc-after';
+    delta.textContent = '変化なし';
+    delta.className   = 'rc-delta neu';
+    card.className    = 'res-card';
+  } else {
+    const ok = lowerIsBetter ? diff < 0 : diff > 0;
+    after.className  = 'rc-after ' + (ok ? 'down-good' : 'up-bad');
+    delta.textContent = (diff > 0 ? '+' : '') + pct.toFixed(1) + '%';
+    delta.className   = 'rc-delta ' + (ok ? 'neg' : 'pos');
+    card.className    = 'res-card ' + (ok ? 'improved' : 'changed');
+    pop(after);
+  }
+}
+
+// ═══════════════════════════════════════════════
+// REPORT
+// ═══════════════════════════════════════════════
+function genReport() {
+  const m = DATA[mainKey], c = DATA[cmpKey];
+  const allR   = Object.values(DATA).map(d => d.recycleRate);
+  const avgR   = (allR.reduce((s,v)=>s+v,0)/allR.length).toFixed(1);
+  const popFactor = 1 + simPop / 100;
+  const newTotal  = +(m.waste * popFactor).toFixed(1);
+  const rDelta    = +(ITEMS[simItemKey].weight * simItemDelta).toFixed(2);
+  const newRecycle = +Math.min(100, m.recycleRate + rDelta).toFixed(1);
+  const baseDisp  = +(m.waste * (1 - m.recycleRate / 100)).toFixed(1);
+  const newDisp   = +(newTotal * (1 - newRecycle / 100)).toFixed(1);
+
+  const oppKey = Object.keys(ITEMS).sort((a,b) =>
+    ITEMS[b].weight*(100-m.itemRates[b]) - ITEMS[a].weight*(100-m.itemRates[a])
+  )[0];
+
+  const lines = [];
+  lines.push(`<strong>【課題分析：${m.name}（令和6年度実績）】</strong>`);
+  lines.push(m.perCap > 853
+    ? `● 1人1日排出量（${m.perCap} g）は全国平均（853 g）を上回り、発生抑制の強化が課題です。`
+    : `● 1人1日排出量（${m.perCap} g）は全国平均（853 g）を下回っており、発生抑制が進んでいます。`);
+  lines.push(m.recycleRate < parseFloat(avgR)
+    ? `● リサイクル率（${m.recycleRate}%）は主要都市平均（${avgR}%）を下回っています。資源化率向上が最重要課題です。`
+    : `● リサイクル率（${m.recycleRate}%）は主要都市平均（${avgR}%）を上回っており、先進的な取組みが評価されます。`);
+  lines.push(`● <strong>${ITEMS[oppKey].label}</strong>（現状 ${m.itemRates[oppKey]}%）は改善余地が最も大きい品目です。`);
+  lines.push(m.recycleRate < c.recycleRate
+    ? `● 比較対象の${c.name}（${c.recycleRate}%）と比べて ${(c.recycleRate - m.recycleRate).toFixed(1)}pt 低い水準です。`
+    : `● 比較対象の${c.name}（${c.recycleRate}%）と比べて ${(m.recycleRate - c.recycleRate).toFixed(1)}pt 高い水準です。`);
+
+  if (simPop !== 0 || simItemDelta > 0) {
+    lines.push(''); lines.push('<strong>【シミュレーション結果】</strong>');
+    if (simPop !== 0) {
+      const d = (newTotal - m.waste).toFixed(1);
+      lines.push(`● 人口 ${Math.abs(simPop)}%${simPop < 0 ? '減少' : '増加'} → ごみ総排出量 <strong>${m.waste}千t → ${newTotal}千t</strong>（${d > 0 ? '+' : ''}${d}千t）`);
+    }
+    if (simItemDelta > 0) {
+      const dD = (baseDisp - newDisp).toFixed(1);
+      lines.push(`● ${ITEMS[simItemKey].label} +${simItemDelta}pt 改善 → 全体リサイクル率 <strong>+${rDelta}pt</strong>（${m.recycleRate}% → ${newRecycle}%）`);
+      if (dD > 0) lines.push(`● 処分対象廃棄物量は <strong>${baseDisp}千t → ${newDisp}千t</strong>（▼${dD}千t）に削減されます。`);
+    }
+  } else {
+    lines.push(''); lines.push('<strong>【推奨アクション】</strong>');
+    lines.push('● スライダーを操作すると具体的な施策効果が表示されます。');
+  }
+
+  const box = document.getElementById('reportOut');
+  box.innerHTML = lines.map(l => `<p>${l}</p>`).join('');
+  box.classList.remove('vis'); void box.offsetWidth; box.classList.add('vis');
+}
+
+// ═══════════════════════════════════════════════
+// DROPDOWN SYNC
+// ═══════════════════════════════════════════════
+function syncDropdowns() {
+  const selCmp = document.getElementById('selCmp');
+  Array.from(selCmp.options).forEach(o => { o.disabled = o.value === mainKey; });
+  if (cmpKey === mainKey) { cmpKey = Object.keys(DATA).find(k => k !== mainKey); selCmp.value = cmpKey; }
+}
+function onMainChange() {
+  mainKey = document.getElementById('selMain').value;
+  if (cmpKey === mainKey) { cmpKey = Object.keys(DATA).find(k => k !== mainKey); document.getElementById('selCmp').value = cmpKey; }
+  syncDropdowns(); resetSliders(); buildAll();
+  document.getElementById('reportOut').classList.remove('vis');
+}
+function onCmpChange() {
+  cmpKey = document.getElementById('selCmp').value;
+  buildItemBars(DATA[mainKey], DATA[cmpKey]);
+  buildItemChart(DATA[mainKey], DATA[cmpKey]);
+  buildCmpCharts(); buildCmpTable();
+  setText('tagCmp', DATA[cmpKey].name + '（比較）');
+  setText('legCmp', DATA[cmpKey].name);
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function resetSliders() {
+  document.getElementById('slPop').value  = 0;
+  document.getElementById('slItem').value = 0;
+  simPop = 0; simItemDelta = 0;
+  setText('valPop', '0%'); setText('valItem', '+0pt');
+}
+function killChart(id) { const c = Chart.getChart(id); if (c) c.destroy(); }
+function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
+function pop(el) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+</script>
+</body>
+</html>
