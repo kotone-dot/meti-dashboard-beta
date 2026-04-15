@@ -779,11 +779,10 @@ function setBadge(id, cls, txt) {
 function buildTrend(m) {
   killChart('chartWaste'); killChart('chartRecycle');
 
-  // 選択自治体の値範囲に合わせた動的スケール（トレンドを見やすく）
-  const wMin = Math.min(...m.wasteTrend), wMax = Math.max(...m.wasteTrend);
-  const wPad = Math.max((wMax - wMin) * 0.6, 30);
-  const wasteYMin = Math.floor((wMin - wPad) / 50) * 50;
-  const wasteYMax = Math.ceil((wMax  + wPad) / 50) * 50;
+  // 全自治体の最大廃棄物量からY軸上限を固定（比較可能なスケール）
+  const allWasteMax = Math.max(...Object.values(DATA).flatMap(d => d.wasteTrend));
+  const wasteYMin = 0;
+  const wasteYMax = Math.ceil(allWasteMax / 500) * 500;
 
   CH.waste = new Chart(document.getElementById('chartWaste'), {
     type: 'line',
