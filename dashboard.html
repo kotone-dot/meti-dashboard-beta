@@ -218,6 +218,7 @@ body { min-width: 1100px; }
 .h-200 { height: 200px; }
 .h-220 { height: 220px; }
 .h-240 { height: 240px; }
+.h-260 { height: 260px; }
 .chart-label { font-size: 11px; font-weight: 600; color: var(--slate); letter-spacing: .2px; margin-bottom: 8px; }
 
 /* ─────────────────────────────
@@ -524,16 +525,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
           <span class="tag" id="tagCmp">—</span>
         </div>
       </div>
-      <div class="ch2" style="gap:22px;align-items:start;">
-        <div>
-          <div class="ibar-list" id="ibarList"></div>
-          <div class="legend-row">
-            <div class="leg-item"><div class="leg-dot" style="background:var(--purple)"></div><span id="legMain">—</span></div>
-            <div class="leg-item"><div class="leg-dot" style="background:var(--slate);opacity:.5"></div><span id="legCmp">—（比較）</span></div>
-          </div>
-        </div>
-        <div class="ch-wrap h-220"><canvas id="chartItems"></canvas></div>
-      </div>
+      <div class="ch-wrap h-260"><canvas id="chartItems"></canvas></div>
       <div class="data-note">※ 品目別リサイクル率は環境省一般廃棄物処理実態調査（R6）をもとに試算</div>
     </div>
 
@@ -738,7 +730,7 @@ function buildAll() {
   const m = DATA[mainKey], c = DATA[cmpKey];
   renderKPIs(m);
   buildTrend(m);
-  buildItemBars(m, c);
+
   buildItemChart(m, c);
   buildCmpCharts();
   buildCmpTable();
@@ -834,32 +826,6 @@ function buildTrend(m) {
   });
 }
 
-// ═══════════════════════════════════════════════
-// ITEM BARS
-// ═══════════════════════════════════════════════
-function buildItemBars(m, cmp) {
-  const container = document.getElementById('ibarList');
-  container.innerHTML = '';
-  Object.keys(ITEMS).forEach(k => {
-    const base = m.itemRates[k];
-    const val  = simItemKey === k ? Math.min(100, base + simItemDelta) : base;
-    const cmpV = cmp.itemRates[k];
-    // Color: high→cyan, mid→purple, low→blue
-    const fill = val >= 60 ? C.cyan : val >= 40 ? C.purple : C.blue;
-    const row = document.createElement('div');
-    row.className = 'ibar-row';
-    row.innerHTML = `
-      <div class="ibar-name">${ITEMS[k].label}</div>
-      <div class="ibar-track">
-        <div class="ibar-fill" style="width:${val}%;background:${fill}"></div>
-        <div class="ibar-fill-cmp" style="width:${cmpV}%"></div>
-      </div>
-      <div class="ibar-pct">${val}%</div>
-      <div class="ibar-cmp">(${cmpV}%)</div>
-    `;
-    container.appendChild(row);
-  });
-}
 
 // ═══════════════════════════════════════════════
 // ITEM CHART
@@ -1023,7 +989,7 @@ function onSim() {
     CH.sim.update('active');
   }
 
-  buildItemBars(m, DATA[cmpKey]);
+
   buildItemChart(m, DATA[cmpKey]);
 }
 
@@ -1121,7 +1087,7 @@ function onMainChange() {
 }
 function onCmpChange() {
   cmpKey = document.getElementById('selCmp').value;
-  buildItemBars(DATA[mainKey], DATA[cmpKey]);
+
   buildItemChart(DATA[mainKey], DATA[cmpKey]);
   buildCmpCharts(); buildCmpTable();
   setText('tagCmp', DATA[cmpKey].name + '（比較）');
