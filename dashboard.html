@@ -404,29 +404,53 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
     <div class="ctrl-wrap">
       <div class="ctrl-lbl">対象自治体</div>
       <select class="hd-select" id="selMain" onchange="onMainChange()">
-        <option value="yokohama">横浜市（神奈川）</option>
-        <option value="nagoya">名古屋市（愛知）</option>
-        <option value="osaka">大阪市（大阪）</option>
-        <option value="sapporo">札幌市（北海道）</option>
-        <option value="sendai">仙台市（宮城）</option>
-        <option value="hiroshima">広島市（広島）</option>
-        <option value="fukuoka">福岡市（福岡）</option>
-        <option value="kyoto">京都市（京都）</option>
         <option value="tokyo23">東京都23区</option>
+        <option value="yokohama">横浜市（神奈川）</option>
+        <option value="osaka">大阪市（大阪）</option>
+        <option value="nagoya">名古屋市（愛知）</option>
+        <option value="sapporo">札幌市（北海道）</option>
+        <option value="fukuoka">福岡市（福岡）</option>
+        <option value="kawasaki">川崎市（神奈川）</option>
+        <option value="kobe">神戸市（兵庫）</option>
+        <option value="kyoto">京都市（京都）</option>
+        <option value="saitama">さいたま市（埼玉）</option>
+        <option value="hiroshima">広島市（広島）</option>
+        <option value="sendai">仙台市（宮城）</option>
+        <option value="chiba">千葉市（千葉）</option>
+        <option value="kitakyushu">北九州市（福岡）</option>
+        <option value="sakai">堺市（大阪）</option>
+        <option value="hamamatsu">浜松市（静岡）</option>
+        <option value="niigata">新潟市（新潟）</option>
+        <option value="kumamoto">熊本市（熊本）</option>
+        <option value="sagamihara">相模原市（神奈川）</option>
+        <option value="okayama">岡山市（岡山）</option>
+        <option value="shizuoka">静岡市（静岡）</option>
       </select>
     </div>
     <div class="ctrl-wrap">
       <div class="ctrl-lbl">比較対象</div>
       <select class="hd-select" id="selCmp" onchange="onCmpChange()">
         <option value="nagoya">名古屋市</option>
-        <option value="osaka">大阪市</option>
-        <option value="yokohama">横浜市</option>
-        <option value="sapporo">札幌市</option>
-        <option value="sendai">仙台市</option>
-        <option value="hiroshima">広島市</option>
-        <option value="fukuoka">福岡市</option>
-        <option value="kyoto">京都市</option>
         <option value="tokyo23">東京都23区</option>
+        <option value="yokohama">横浜市</option>
+        <option value="osaka">大阪市</option>
+        <option value="sapporo">札幌市</option>
+        <option value="fukuoka">福岡市</option>
+        <option value="kawasaki">川崎市</option>
+        <option value="kobe">神戸市</option>
+        <option value="kyoto">京都市</option>
+        <option value="saitama">さいたま市</option>
+        <option value="hiroshima">広島市</option>
+        <option value="sendai">仙台市</option>
+        <option value="chiba">千葉市</option>
+        <option value="kitakyushu">北九州市</option>
+        <option value="sakai">堺市</option>
+        <option value="hamamatsu">浜松市</option>
+        <option value="niigata">新潟市</option>
+        <option value="kumamoto">熊本市</option>
+        <option value="sagamihara">相模原市</option>
+        <option value="okayama">岡山市</option>
+        <option value="shizuoka">静岡市</option>
       </select>
     </div>
     <div class="ctrl-wrap">
@@ -710,14 +734,26 @@ const DATA = {
   hiroshima: { name:'広島市',   pref:'広島県',   pop:1174414, waste:332.0,  recycleRate:14.6, perCap:774.6, itemRates:{plastic:40.2,paper:16.0,pet:34.5,metal:29.8,glass:32.8}, wasteTrend:[346,341,337,334,332.0],     recycleTrend:[12.1,12.5,13.0,13.7,14.6] },
   fukuoka:   { name:'福岡市',   pref:'福岡県',   pop:1656737, waste:515.1,  recycleRate:13.2, perCap:851.7, itemRates:{plastic:20.0,paper:20.6,pet:40.5,metal:32.3,glass:16.6}, wasteTrend:[537,529,523,518,515.1],     recycleTrend:[10.7,11.1,11.5,12.3,13.2] },
   kyoto:     { name:'京都市',   pref:'京都府',   pop:1437377, waste:383.8,  recycleRate:12.1, perCap:731.6, itemRates:{plastic:27.4,paper:11.7,pet:40.3,metal:24.9,glass:31.1}, wasteTrend:[400,395,391,387,383.8],     recycleTrend:[9.6,10.0,10.5,11.2,12.1] },
-  tokyo23:   { name:'東京都23区',pref:'東京都',  pop:9725730, waste:2936.5, recycleRate:21.5, perCap:827.2, itemRates:{plastic:14.4,paper:27.4,pet:73.7,metal:36.3,glass:65.4}, wasteTrend:[3060,3012,2984,2956,2936.5], recycleTrend:[19.0,19.5,20.0,20.7,21.5] },
+  tokyo23:    { name:'東京都23区', pref:'東京都',   pop:9725730, waste:2936.5, recycleRate:21.5, perCap:827.2,  itemRates:{plastic:14.4,paper:27.4,pet:73.7,metal:36.3,glass:65.4}, wasteTrend:[3060,3012,2984,2956,2936.5], recycleTrend:[19.0,19.5,20.0,20.7,21.5] },
+  kawasaki:   { name:'川崎市',     pref:'神奈川県', pop:1535564, waste:395.2,  recycleRate:19.0, perCap:705.1,  itemRates:{plastic:33.5,paper:20.1,pet:56.8,metal:32.7,glass:28.9}, wasteTrend:[411.0,407.1,403.1,399.2,395.2], recycleTrend:[16.4,17.1,17.7,18.4,19.0] },
+  kobe:       { name:'神戸市',     pref:'兵庫県',   pop:1493990, waste:472.9,  recycleRate:12.1, perCap:867.2,  itemRates:{plastic:23.1,paper:13.9,pet:41.6,metal:23.7,glass:21.3}, wasteTrend:[491.8,487.1,482.4,477.6,472.9], recycleTrend:[9.5,10.1,10.8,11.4,12.1] },
+  saitama:    { name:'さいたま市', pref:'埼玉県',   pop:1350047, waste:382.4,  recycleRate:23.5, perCap:776.0,  itemRates:{plastic:40.2,paper:24.2,pet:66.7,metal:38.5,glass:33.9}, wasteTrend:[397.7,393.9,390.0,386.2,382.4], recycleTrend:[20.9,21.6,22.2,22.9,23.5] },
+  chiba:      { name:'千葉市',     pref:'千葉県',   pop:984598,  waste:332.6,  recycleRate:34.3, perCap:925.5,  itemRates:{plastic:56.4,paper:33.9,pet:85.0,metal:52.6,glass:45.7}, wasteTrend:[345.9,342.6,339.3,335.9,332.6], recycleTrend:[31.7,32.3,33.0,33.6,34.3] },
+  kitakyushu: { name:'北九州市',   pref:'福岡県',   pop:914533,  waste:376.4,  recycleRate:24.0, perCap:1127.7, itemRates:{plastic:41.0,paper:24.6,pet:67.8,metal:39.2,glass:34.4}, wasteTrend:[391.5,387.7,383.9,380.2,376.4], recycleTrend:[21.4,22.1,22.7,23.4,24.0] },
+  sakai:      { name:'堺市',       pref:'大阪府',   pop:813053,  waste:241.2,  recycleRate:17.1, perCap:812.7,  itemRates:{plastic:30.7,paper:18.4,pet:52.6,metal:30.2,glass:26.8}, wasteTrend:[250.8,248.4,246.0,243.6,241.2], recycleTrend:[14.5,15.2,15.8,16.5,17.1] },
+  hamamatsu:  { name:'浜松市',     pref:'静岡県',   pop:785210,  waste:215.5,  recycleRate:17.5, perCap:751.8,  itemRates:{plastic:31.2,paper:18.8,pet:53.5,metal:30.8,glass:27.2}, wasteTrend:[224.1,222.0,219.8,217.7,215.5], recycleTrend:[14.9,15.6,16.2,16.9,17.5] },
+  niigata:    { name:'新潟市',     pref:'新潟県',   pop:762739,  waste:257.8,  recycleRate:23.0, perCap:926.1,  itemRates:{plastic:39.5,paper:23.7,pet:65.6,metal:37.9,glass:33.3}, wasteTrend:[268.1,265.5,263.0,260.4,257.8], recycleTrend:[20.4,21.1,21.7,22.4,23.0] },
+  kumamoto:   { name:'熊本市',     pref:'熊本県',   pop:731086,  waste:241.7,  recycleRate:18.3, perCap:905.6,  itemRates:{plastic:32.5,paper:19.5,pet:55.3,metal:31.8,glass:28.1}, wasteTrend:[251.4,249.0,246.5,244.1,241.7], recycleTrend:[15.7,16.4,17.0,17.7,18.3] },
+  sagamihara: { name:'相模原市',   pref:'神奈川県', pop:716673,  waste:200.8,  recycleRate:20.2, perCap:767.6,  itemRates:{plastic:35.3,paper:21.2,pet:59.4,metal:34.3,glass:30.2}, wasteTrend:[208.8,206.8,204.8,202.8,200.8], recycleTrend:[17.6,18.2,18.9,19.6,20.2] },
+  okayama:    { name:'岡山市',     pref:'岡山県',   pop:696045,  waste:263.9,  recycleRate:35.9, perCap:1038.6, itemRates:{plastic:58.8,paper:35.3,pet:85.0,metal:54.7,glass:47.5}, wasteTrend:[274.5,271.8,269.2,266.5,263.9], recycleTrend:[33.3,33.9,34.6,35.2,35.9] },
+  shizuoka:   { name:'静岡市',     pref:'静岡県',   pop:674097,  waste:201.7,  recycleRate:13.8, perCap:819.9,  itemRates:{plastic:25.7,paper:15.4,pet:45.4,metal:25.9,glass:23.2}, wasteTrend:[209.8,207.8,205.7,203.7,201.7], recycleTrend:[11.2,11.9,12.5,13.2,13.8] },
 };
 const YEARS = ['2020','2021','2022','2023','2024'];
 
 // ═══════════════════════════════════════════════
 // STATE
 // ═══════════════════════════════════════════════
-let mainKey = 'yokohama', cmpKey = 'nagoya';
+let mainKey = 'tokyo23', cmpKey = 'nagoya';
 let simPop = 0, simItemKey = 'plastic', simItemDelta = 0;
 const CH = {};
 
