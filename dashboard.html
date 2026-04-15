@@ -787,14 +787,9 @@ function setBadge(id, cls, txt) {
 function buildTrend(m) {
   killChart('chartWaste'); killChart('chartRecycle');
 
-  const opts = (unit) => ({
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { ticks: { font: { size: 10, family: 'Manrope' }, color: C.slate }, grid: { color: C.grid } },
-      y: { ticks: { font: { size: 10, family: 'Manrope' }, color: C.slate, callback: v => v + unit }, grid: { color: C.grid } }
-    }
-  });
+  // 全自治体の最大廃棄物量からY軸上限を固定（比較可能にする）
+  const allWasteMax = Math.max(...Object.values(DATA).flatMap(d => d.wasteTrend));
+  const wasteYMax   = Math.ceil(allWasteMax / 500) * 500; // 500刻みで切り上げ
 
   CH.waste = new Chart(document.getElementById('chartWaste'), {
     type: 'line',
@@ -803,7 +798,18 @@ function buildTrend(m) {
       borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: C.purple,
       pointBorderColor: '#fff', pointBorderWidth: 2, tension: .35, fill: true
     }]},
-    options: opts('千t')
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 10, family: 'Manrope' }, color: C.slate }, grid: { color: C.grid } },
+        y: {
+          min: 0, max: wasteYMax,
+          ticks: { font: { size: 10, family: 'Manrope' }, color: C.slate, callback: v => v + '千t' },
+          grid: { color: C.grid }
+        }
+      }
+    }
   });
 
   CH.recycle = new Chart(document.getElementById('chartRecycle'), {
@@ -813,7 +819,18 @@ function buildTrend(m) {
       borderWidth: 2.5, pointRadius: 4, pointBackgroundColor: C.cyan,
       pointBorderColor: '#fff', pointBorderWidth: 2, tension: .35, fill: true
     }]},
-    options: opts('%')
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { font: { size: 10, family: 'Manrope' }, color: C.slate }, grid: { color: C.grid } },
+        y: {
+          min: 0, max: 35,
+          ticks: { font: { size: 10, family: 'Manrope' }, color: C.slate, callback: v => v + '%' },
+          grid: { color: C.grid }
+        }
+      }
+    }
   });
 }
 
@@ -865,8 +882,8 @@ function buildItemChart(m, cmp) {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { position: 'top', labels: { font: { size: 10, family: 'Manrope' }, boxWidth: 10, padding: 8, color: C.slate } } },
       scales: {
-        x: { max: 100, ticks: { font:{size:9,family:'Manrope'}, color: C.slate, callback: v => v + '%' }, grid: { color: C.grid } },
-        y: { ticks: { font:{size:10,family:'Manrope'}, color: '#0F172A' }, grid: { display: false } }
+        x: { min: 0, max: 100, ticks: { font:{size:9,family:'Manrope'}, color: C.slate, callback: v => v + '%' }, grid: { color: C.grid } },
+        y: { ticks: { font:{size:10,family:'Manrope'}, color: '#0F172A', autoSkip: false }, grid: { display: false } }
       }
     }
   });
