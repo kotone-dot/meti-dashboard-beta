@@ -476,7 +476,7 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
 }
 .info-popup-overlay.open { display: block; }
 .info-popup {
-  position: absolute;
+  position: fixed;
   background: #fff; border: 1.5px solid var(--border);
   border-radius: var(--r-lg); box-shadow: 0 8px 32px rgba(0,0,0,.13);
   width: 520px; max-height: 80vh; overflow-y: auto;
@@ -1568,13 +1568,30 @@ function toggleImpactInfo(e) {
     overlay.classList.remove('open');
     return;
   }
-  // ボタン位置に合わせてポップアップを配置
-  const r = btn.getBoundingClientRect();
+  const r    = btn.getBoundingClientRect();
   const popW = 520;
+  const gap  = 8;
+  const margin = 16;
+
+  // 左右位置：画面外にはみ出さないよう調整
   let left = r.left;
-  if (left + popW > window.innerWidth - 16) left = window.innerWidth - popW - 16;
-  popup.style.top  = (r.bottom + 8) + 'px';
-  popup.style.left = Math.max(8, left) + 'px';
+  if (left + popW > window.innerWidth - margin) left = window.innerWidth - popW - margin;
+  popup.style.left = Math.max(margin, left) + 'px';
+
+  // 上下位置：下に余白があれば下、なければ上に表示
+  const spaceBelow = window.innerHeight - r.bottom - gap;
+  const spaceAbove = r.top - gap;
+  if (spaceBelow >= 260 || spaceBelow >= spaceAbove) {
+    // 下に表示
+    popup.style.top    = (r.bottom + gap) + 'px';
+    popup.style.bottom = 'auto';
+    popup.style.maxHeight = Math.max(200, spaceBelow - margin) + 'px';
+  } else {
+    // 上に表示
+    popup.style.bottom = (window.innerHeight - r.top + gap) + 'px';
+    popup.style.top    = 'auto';
+    popup.style.maxHeight = Math.max(200, spaceAbove - margin) + 'px';
+  }
   overlay.classList.add('open');
 }
 document.addEventListener('click', () => {
