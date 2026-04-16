@@ -1417,9 +1417,9 @@ function buildImpactSliders() {
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--slate);margin-bottom:3px;">
           <span>現状 ${cur}%</span><span>上限 100%</span>
         </div>
-        <input type="range" min="0" max="${Math.max(0, 100-cur)}" step="1" value="${Math.min(delta, Math.max(0, 100-cur))}"
+        <input type="range" min="0" max="${+(Math.max(0, 100-cur).toFixed(1))}" step="0.1" value="${+(Math.min(delta, Math.max(0, 100-cur)).toFixed(1))}"
           oninput="impactDeltas['${key}']=+this.value;document.getElementById('iDv-${key}').textContent='合計 '+Math.min(100,(${cur}+ +this.value)).toFixed(1)+'%';buildImpactCharts();">
-        <div class="sl-ticks"><span>+0</span><span>+${Math.round(Math.max(0,100-cur)/2)}pt</span><span>+${Math.max(0,100-cur)}pt</span></div>
+        <div class="sl-ticks"><span>+0</span><span>+${+(Math.max(0,100-cur)/2).toFixed(1)}pt</span><span>+${+(Math.max(0,100-cur).toFixed(1))}pt</span></div>
       </div>
       <div class="impact-sl-val" id="iDv-${key}">${delta > 0 ? '合計 '+Math.min(100,cur+delta).toFixed(1)+'%' : cur+'%'}</div>`;
     el.appendChild(row);
