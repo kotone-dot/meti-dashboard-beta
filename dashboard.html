@@ -1415,13 +1415,13 @@ function buildImpactSliders() {
       </div>
       <div>
         <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--slate);margin-bottom:3px;">
-          <span>現状 ${cur}%</span><span>+30pt 上限</span>
+          <span>現状 ${cur}%</span><span>上限 ${Math.min(100, cur+30).toFixed(1)}%</span>
         </div>
         <input type="range" min="0" max="30" step="1" value="${delta}"
-          oninput="impactDeltas['${key}']=+this.value;document.getElementById('iDv-${key}').textContent='+'+this.value+'pt';buildImpactCharts();">
-        <div class="sl-ticks"><span>+0</span><span>+15pt</span><span>+30pt</span></div>
+          oninput="impactDeltas['${key}']=+this.value;document.getElementById('iDv-${key}').textContent='合計 '+(${cur}+ +this.value).toFixed(1)+'%';buildImpactCharts();">
+        <div class="sl-ticks"><span>${cur}%</span><span>${(cur+15).toFixed(1)}%</span><span>${Math.min(100,cur+30).toFixed(1)}%</span></div>
       </div>
-      <div class="impact-sl-val" id="iDv-${key}">+${delta}pt</div>`;
+      <div class="impact-sl-val" id="iDv-${key}">${delta > 0 ? '合計 '+(cur+delta).toFixed(1)+'%' : cur+'%'}</div>`;
     el.appendChild(row);
   });
 }
