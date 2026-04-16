@@ -447,6 +447,18 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
   font-size: 11px; color: var(--slate); font-weight: 500;
   font-style: italic;
 }
+/* ─── Impact total KPI cards ─── */
+.impact-kpi-card {
+  background: var(--bg-muted); border: 1.5px solid var(--border);
+  border-radius: var(--r-md); padding: 13px 13px 11px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.impact-kpi-lbl  { font-size: 9px; font-weight: 700; color: var(--slate); letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+.impact-kpi-val  { font-size: 22px; font-weight: 700; color: var(--black); line-height: 1.1; }
+.impact-kpi-unit { font-size: 10px; font-weight: 500; color: var(--slate); margin-bottom: 8px; }
+.impact-kpi-bar-wrap { height: 5px; background: var(--border); border-radius: var(--r-pill); overflow: hidden; margin-bottom: 5px; }
+.impact-kpi-bar  { height: 100%; border-radius: var(--r-pill); width: 0%; transition: width .5s cubic-bezier(.4,0,.2,1); }
+.impact-kpi-pct  { font-size: 11px; font-weight: 600; color: var(--slate); }
 
 /* PC固定レイアウト — レスポンシブ崩れを防ぐ */
 </style>
@@ -685,12 +697,32 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
         </div>
       </div>
 
-      <!-- Winner summary -->
-      <div class="impact-summary" id="impactSummary" style="display:none;">
-        <div style="font-size:11px;font-weight:700;color:var(--slate);letter-spacing:.3px;text-transform:uppercase;margin-bottom:2px;">最大インパクト品目</div>
-        <div class="impact-summary-row" id="iSumCost"></div>
-        <div class="impact-summary-row" id="iSumWaste"></div>
-        <div class="impact-summary-row" id="iSumGhg"></div>
+      <!-- Total impact KPI cards -->
+      <div class="impact-totals" id="impactTotals" style="display:none;">
+        <div class="field-lbl" style="margin:14px 0 8px;">施策インパクト合計</div>
+        <div class="ch3">
+          <div class="impact-kpi-card">
+            <div class="impact-kpi-lbl">廃棄物削減量</div>
+            <div class="impact-kpi-val" id="iTotalWaste">—</div>
+            <div class="impact-kpi-unit">千トン削減</div>
+            <div class="impact-kpi-bar-wrap"><div class="impact-kpi-bar" id="iBarWaste" style="background:var(--purple)"></div></div>
+            <div class="impact-kpi-pct" id="iPctWaste">—</div>
+          </div>
+          <div class="impact-kpi-card">
+            <div class="impact-kpi-lbl">GHG削減</div>
+            <div class="impact-kpi-val" id="iTotalGhg">—</div>
+            <div class="impact-kpi-unit">t-CO₂e削減</div>
+            <div class="impact-kpi-bar-wrap"><div class="impact-kpi-bar" id="iBarGhg" style="background:var(--cyan)"></div></div>
+            <div class="impact-kpi-pct" id="iPctGhg">—</div>
+          </div>
+          <div class="impact-kpi-card">
+            <div class="impact-kpi-lbl">コスト削減</div>
+            <div class="impact-kpi-val" id="iTotalCost">—</div>
+            <div class="impact-kpi-unit">百万円削減</div>
+            <div class="impact-kpi-bar-wrap"><div class="impact-kpi-bar" id="iBarCost" style="background:var(--blue)"></div></div>
+            <div class="impact-kpi-pct" id="iPctCost">—</div>
+          </div>
+        </div>
       </div>
 
       <div id="policyBox" class="policy-box" style="display:none;"></div>
@@ -1336,7 +1368,7 @@ function buildImpactCharts() {
 
   if (selectedImpactItems.length === 0) {
     empty.style.display = ''; grid.style.display = 'none'; policy.style.display = 'none';
-    document.getElementById('impactSummary').style.display = 'none';
+    document.getElementById('impactTotals').style.display = 'none';
     return;
   }
   empty.style.display = 'none'; grid.style.display = '';
@@ -1367,34 +1399,26 @@ function buildImpactCharts() {
   CH.impactGhg   = makeBar('chartImpactGhg',   imps.map(v=>v.ghg),  't');
   CH.impactCost  = makeBar('chartImpactCost',   imps.map(v=>v.cost), '百万');
 
-  // ── Winner summary ──
-  const summary = document.getElementById('impactSummary');
-  summary.style.display = '';
-  const renderSummaryRow = (elId, kpiLabel, vals) => {
-    const maxIdx = vals.reduce((mi, v, i, a) => v > a[mi] ? i : mi, 0);
-    const el = document.getElementById(elId);
-    if (vals.length > 0) {
-      const winKey = selectedImpactItems[maxIdx];
-      const winColor = IMPACT_COLS[maxIdx];
-      const winColorA = IMPACT_COLS_A[maxIdx];
-      el.innerHTML = `
-        <span class="impact-summary-kpi">${kpiLabel}</span>
-        <span class="impact-summary-line"></span>
-        <span class="impact-summary-winner" style="background:${winColorA};color:${winColor};">
-          ${ITEMS[winKey].label}
-        </span>`;
-    } else {
-      el.innerHTML = `
-        <span class="impact-summary-kpi">${kpiLabel}</span>
-        <span class="impact-summary-line"></span>
-        <span class="impact-summary-none">—</span>`;
-    }
+  // ── 合計インパクト KPIカード ──
+  const totals = document.getElementById('impactTotals');
+  totals.style.display = '';
+  const totalWaste = imps.reduce((s,v) => s + v.waste, 0);
+  const totalGhg   = imps.reduce((s,v) => s + v.ghg,   0);
+  const totalCost  = imps.reduce((s,v) => s + v.cost,   0);
+  const m = DATA[mainKey];
+  // ベースライン：現状の廃棄物総量・GHG・コストに対する削減率
+  const baseGhg  = m.waste * 1000 * 0.5;   // 簡易ベース（tCO2e）
+  const baseCost = m.waste * 30;            // 簡易ベース（百万円）
+
+  const setKpi = (valId, barId, pctId, val, base, decimals) => {
+    document.getElementById(valId).textContent = val.toFixed(decimals);
+    const pct = base > 0 ? Math.min(100, val / base * 100) : 0;
+    document.getElementById(barId).style.width = pct + '%';
+    document.getElementById(pctId).textContent = '総排出量比 −' + (m.waste > 0 ? (val / (base || 1) * 100).toFixed(1) : '0') + '%';
   };
-  // 要約：品目ごとのKPI効率係数（組成比・デルタ非依存）で比較
-  // → コスト=costFactor, 廃棄物=wasteFactor, GHG=ghgFactor の高い品目が勝者
-  renderSummaryRow('iSumCost',  'トータルコスト', selectedImpactItems.map(k => ITEM_IMPACTS[k].costFactor));
-  renderSummaryRow('iSumWaste', '廃棄物総量',     selectedImpactItems.map(k => ITEM_IMPACTS[k].wasteFactor));
-  renderSummaryRow('iSumGhg',   'GHG',           selectedImpactItems.map(k => ITEM_IMPACTS[k].ghgFactor));
+  setKpi('iTotalWaste', 'iBarWaste', 'iPctWaste', totalWaste, m.waste,    2);
+  setKpi('iTotalGhg',   'iBarGhg',   'iPctGhg',   totalGhg,   baseGhg,   0);
+  setKpi('iTotalCost',  'iBarCost',  'iPctCost',  totalCost,  baseCost,  1);
 
   // Policy & analysis
   const active = selectedImpactItems.map(k=>({key:k,...calcImpact(k,impactDeltas[k]||0)})).filter(v=>v.waste>0||true);
