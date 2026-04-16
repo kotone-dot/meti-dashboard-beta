@@ -1370,11 +1370,10 @@ function buildImpactCharts() {
   // ── Winner summary ──
   const summary = document.getElementById('impactSummary');
   summary.style.display = '';
-  const renderSummaryRow = (elId, kpiLabel, vals, unit) => {
+  const renderSummaryRow = (elId, kpiLabel, vals) => {
     const maxIdx = vals.reduce((mi, v, i, a) => v > a[mi] ? i : mi, 0);
-    const hasAny = vals.some(v => v > 0);
     const el = document.getElementById(elId);
-    if (hasAny) {
+    if (vals.length > 0) {
       const winKey = selectedImpactItems[maxIdx];
       const winColor = IMPACT_COLS[maxIdx];
       const winColorA = IMPACT_COLS_A[maxIdx];
@@ -1388,12 +1387,14 @@ function buildImpactCharts() {
       el.innerHTML = `
         <span class="impact-summary-kpi">${kpiLabel}</span>
         <span class="impact-summary-line"></span>
-        <span class="impact-summary-none">品目を選択・設定してください</span>`;
+        <span class="impact-summary-none">—</span>`;
     }
   };
-  renderSummaryRow('iSumCost',  'トータルコスト', imps.map(v=>v.cost),  '百万円');
-  renderSummaryRow('iSumWaste', '廃棄物総量',     imps.map(v=>v.waste), '千t');
-  renderSummaryRow('iSumGhg',   'GHG',           imps.map(v=>v.ghg),   't-CO₂e');
+  // 要約：品目ごとのKPI効率係数（組成比・デルタ非依存）で比較
+  // → コスト=costFactor, 廃棄物=wasteFactor, GHG=ghgFactor の高い品目が勝者
+  renderSummaryRow('iSumCost',  'トータルコスト', selectedImpactItems.map(k => ITEM_IMPACTS[k].costFactor));
+  renderSummaryRow('iSumWaste', '廃棄物総量',     selectedImpactItems.map(k => ITEM_IMPACTS[k].wasteFactor));
+  renderSummaryRow('iSumGhg',   'GHG',           selectedImpactItems.map(k => ITEM_IMPACTS[k].ghgFactor));
 
   // Policy & analysis
   const active = selectedImpactItems.map(k=>({key:k,...calcImpact(k,impactDeltas[k]||0)})).filter(v=>v.waste>0||true);
