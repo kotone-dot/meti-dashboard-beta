@@ -413,6 +413,40 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
   font-size: 12px; font-weight: 500; border: 1.5px dashed var(--border);
   border-radius: var(--r-md);
 }
+/* ─── Impact winner summary ─── */
+.impact-summary {
+  display: flex; flex-direction: column; gap: 6px;
+  margin-top: 16px; margin-bottom: 2px;
+}
+.impact-summary-row {
+  display: grid; grid-template-columns: 88px 1fr auto;
+  align-items: center; gap: 10px;
+  background: var(--bg-muted); border-radius: var(--r-sm);
+  padding: 9px 13px;
+}
+.impact-summary-kpi {
+  font-size: 11px; font-weight: 700; color: var(--slate);
+  letter-spacing: .2px;
+}
+.impact-summary-line {
+  position: relative; height: 2px; background: var(--border);
+  border-radius: var(--r-pill);
+}
+.impact-summary-line::after {
+  content: ''; position: absolute; right: -1px; top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-left-color: var(--border-mid);
+}
+.impact-summary-winner {
+  font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.impact-summary-none {
+  font-size: 11px; color: var(--slate); font-weight: 500;
+  font-style: italic;
+}
 
 /* PC固定レイアウト — レスポンシブ崩れを防ぐ */
 </style>
@@ -649,6 +683,14 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
             <div class="ch-wrap h-160"><canvas id="chartImpactCost"></canvas></div>
           </div>
         </div>
+      </div>
+
+      <!-- Winner summary -->
+      <div class="impact-summary" id="impactSummary" style="display:none;">
+        <div style="font-size:11px;font-weight:700;color:var(--slate);letter-spacing:.3px;text-transform:uppercase;margin-bottom:2px;">最大インパクト品目</div>
+        <div class="impact-summary-row" id="iSumCost"></div>
+        <div class="impact-summary-row" id="iSumWaste"></div>
+        <div class="impact-summary-row" id="iSumGhg"></div>
       </div>
 
       <div id="policyBox" class="policy-box" style="display:none;"></div>
@@ -1293,7 +1335,9 @@ function buildImpactCharts() {
   const policy= document.getElementById('policyBox');
 
   if (selectedImpactItems.length === 0) {
-    empty.style.display = ''; grid.style.display = 'none'; policy.style.display = 'none'; return;
+    empty.style.display = ''; grid.style.display = 'none'; policy.style.display = 'none';
+    document.getElementById('impactSummary').style.display = 'none';
+    return;
   }
   empty.style.display = 'none'; grid.style.display = '';
 
@@ -1322,6 +1366,34 @@ function buildImpactCharts() {
   CH.impactWaste = makeBar('chartImpactWaste', imps.map(v=>v.waste), '千t');
   CH.impactGhg   = makeBar('chartImpactGhg',   imps.map(v=>v.ghg),  't');
   CH.impactCost  = makeBar('chartImpactCost',   imps.map(v=>v.cost), '百万');
+
+  // ── Winner summary ──
+  const summary = document.getElementById('impactSummary');
+  summary.style.display = '';
+  const renderSummaryRow = (elId, kpiLabel, vals, unit) => {
+    const maxIdx = vals.reduce((mi, v, i, a) => v > a[mi] ? i : mi, 0);
+    const hasAny = vals.some(v => v > 0);
+    const el = document.getElementById(elId);
+    if (hasAny) {
+      const winKey = selectedImpactItems[maxIdx];
+      const winColor = IMPACT_COLS[maxIdx];
+      const winColorA = IMPACT_COLS_A[maxIdx];
+      el.innerHTML = `
+        <span class="impact-summary-kpi">${kpiLabel}</span>
+        <span class="impact-summary-line"></span>
+        <span class="impact-summary-winner" style="background:${winColorA};color:${winColor};">
+          ${ITEMS[winKey].label}
+        </span>`;
+    } else {
+      el.innerHTML = `
+        <span class="impact-summary-kpi">${kpiLabel}</span>
+        <span class="impact-summary-line"></span>
+        <span class="impact-summary-none">品目を選択・設定してください</span>`;
+    }
+  };
+  renderSummaryRow('iSumCost',  'トータルコスト', imps.map(v=>v.cost),  '百万円');
+  renderSummaryRow('iSumWaste', '廃棄物総量',     imps.map(v=>v.waste), '千t');
+  renderSummaryRow('iSumGhg',   'GHG',           imps.map(v=>v.ghg),   't-CO₂e');
 
   // Policy & analysis
   const active = selectedImpactItems.map(k=>({key:k,...calcImpact(k,impactDeltas[k]||0)})).filter(v=>v.waste>0||true);
