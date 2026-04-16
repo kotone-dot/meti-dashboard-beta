@@ -377,6 +377,43 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
 @keyframes numPop { 0%,100% { transform: scale(1); } 40% { transform: scale(1.07); } }
 .pop { animation: numPop .3s ease; }
 
+/* ─────────────────────────────
+   IMPACT COMPARISON
+───────────────────────────── */
+.ch3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.chips-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 13px; border-radius: var(--r-pill);
+  border: 1.5px solid var(--border); background: var(--surface);
+  font-size: 11px; font-weight: 600; color: var(--slate); font-family: var(--font);
+  cursor: pointer; transition: all .15s; white-space: nowrap; line-height: 1;
+}
+.chip:hover { border-color: var(--purple); color: var(--purple); }
+.chip.sel-1 { background: var(--purple); color: #fff; border-color: var(--purple); box-shadow: 0 2px 8px rgba(136,124,255,.3); }
+.chip.sel-2 { background: var(--cyan);   color: #fff; border-color: var(--cyan);   box-shadow: 0 2px 8px rgba(71,209,255,.3); }
+.chip.sel-3 { background: var(--blue);   color: #fff; border-color: var(--blue);   box-shadow: 0 2px 8px rgba(83,172,255,.3); }
+.chip.maxed { opacity: .38; cursor: not-allowed; pointer-events: none; }
+.impact-sliders { display: flex; flex-direction: column; gap: 11px; margin-bottom: 14px; }
+.impact-sl-row { display: grid; grid-template-columns: 110px 1fr 46px; align-items: center; gap: 10px; }
+.impact-sl-name { font-size: 11px; font-weight: 600; color: var(--black); display: flex; align-items: center; gap: 6px; }
+.impact-sl-dot  { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.impact-sl-val  { font-size: 12px; font-weight: 700; color: var(--purple); text-align: right; }
+.policy-box {
+  margin-top: 14px; padding: 13px 15px;
+  background: var(--cyan-soft); border: 1.5px solid rgba(71,209,255,.3);
+  border-radius: var(--r-md); font-size: 12px; line-height: 1.8; color: #056678;
+  animation: fadeUp .3s ease;
+}
+.policy-box strong { font-weight: 700; color: #044e5c; }
+.policy-box p { margin: 0 0 5px; }
+.policy-box p:last-child { margin: 0; }
+.impact-empty {
+  text-align: center; padding: 28px 0; color: var(--slate);
+  font-size: 12px; font-weight: 500; border: 1.5px dashed var(--border);
+  border-radius: var(--r-md);
+}
+
 /* PC固定レイアウト — レスポンシブ崩れを防ぐ */
 </style>
 </head>
@@ -582,6 +619,42 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
       <div class="data-note">出典：環境省 一般廃棄物処理実態調査（令和6年度実績）</div>
     </div>
 
+    <!-- IMPACT COMPARISON -->
+    <div class="card">
+      <div class="card-hd">
+        <div>
+          <div class="card-title">品目別インパクト比較</div>
+          <div class="card-desc">最大3品目を選択 ― 廃棄物・GHG・コストへの効果を比較</div>
+        </div>
+        <span class="tag tag-purple">施策分析</span>
+      </div>
+
+      <div class="field-lbl" style="margin-bottom:9px;">改善品目を選択（最大3つ）</div>
+      <div class="chips-row" id="impactChips"></div>
+      <div class="impact-sliders" id="impactSliders"></div>
+
+      <div id="impactChartsWrap">
+        <div class="impact-empty" id="impactEmpty">品目を選択するとインパクトが表示されます</div>
+        <div class="ch3" id="impactChartGrid" style="display:none;">
+          <div>
+            <div class="chart-label">廃棄物削減量（千t）</div>
+            <div class="ch-wrap h-160"><canvas id="chartImpactWaste"></canvas></div>
+          </div>
+          <div>
+            <div class="chart-label">GHG削減（t-CO₂e）</div>
+            <div class="ch-wrap h-160"><canvas id="chartImpactGhg"></canvas></div>
+          </div>
+          <div>
+            <div class="chart-label">コスト削減（百万円）</div>
+            <div class="ch-wrap h-160"><canvas id="chartImpactCost"></canvas></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="policyBox" class="policy-box" style="display:none;"></div>
+      <div class="data-note">※ GHG・コストは廃棄物削減量に基づく簡易試算（品目別LCA係数適用）</div>
+    </div>
+
   </div><!-- /left-col -->
 
   <!-- ══════ RIGHT ══════ -->
@@ -766,10 +839,10 @@ function buildAll() {
   const m = DATA[mainKey], c = DATA[cmpKey];
   renderKPIs(m);
   buildTrend(m);
-
   buildItemChart(m, c);
   buildCmpCharts();
   buildCmpTable();
+  buildImpactSection();
   initSimChart();
   onSim();
   setText('tagMain', m.name); setText('tagCmp', c.name + '（比較）');
@@ -1103,9 +1176,188 @@ function genReport() {
     lines.push('● スライダーを操作すると具体的な施策効果が表示されます。');
   }
 
+  // ── 品目別インパクト比較セクション ──
+  const impActive = selectedImpactItems.filter(k => (impactDeltas[k]||0) > 0);
+  if (impActive.length > 0) {
+    const impResults = impActive.map(k => ({ key:k, delta:impactDeltas[k], ...calcImpact(k, impactDeltas[k]) }));
+    const wasteW = impResults.reduce((a,b) => a.waste >= b.waste ? a : b);
+    const ghgW   = impResults.reduce((a,b) => a.ghg   >= b.ghg   ? a : b);
+    const costW  = impResults.reduce((a,b) => a.cost   >= b.cost  ? a : b);
+
+    lines.push(''); lines.push('<strong>【品目別インパクト比較】</strong>');
+    lines.push(`● 今回の設定では、<strong>${ITEMS[wasteW.key].label}</strong>のリサイクル改善が廃棄物総量削減に最も寄与します（▼${wasteW.waste.toFixed(2)}千t）。`);
+    lines.push(`● <strong>${ITEMS[ghgW.key].label}</strong>はGHG削減効果が最も高く、優先施策候補と考えられます（▼${ghgW.ghg.toLocaleString()}t-CO₂e）。`);
+    lines.push(`● <strong>${ITEMS[costW.key].label}</strong>は処理コスト削減への貢献が最も大きい品目です（▼${costW.cost.toFixed(1)}百万円）。`);
+
+    lines.push(''); lines.push('<strong>【具体的な施策】</strong>');
+    impResults.forEach(v => {
+      lines.push(`<strong>▶ ${ITEMS[v.key].label}（目標 +${v.delta}pt）</strong>`);
+      ITEM_IMPACTS[v.key].policy.forEach(p => lines.push(`　・${p}`));
+    });
+  } else if (selectedImpactItems.length > 0) {
+    lines.push(''); lines.push('<strong>【品目別インパクト比較】</strong>');
+    lines.push('● 品目が選択されています。スライダーで改善幅を設定すると施策効果が表示されます。');
+  }
+
   const box = document.getElementById('reportOut');
   box.innerHTML = lines.map(l => `<p>${l}</p>`).join('');
   box.classList.remove('vis'); void box.offsetWidth; box.classList.add('vis');
+}
+
+// ═══════════════════════════════════════════════
+// IMPACT COMPARISON
+// ═══════════════════════════════════════════════
+const ITEM_IMPACTS = {
+  plastic: { wasteFactor:1.0, ghgFactor:1.5, costFactor:1.0,
+    policy:['分別対象品目の明確化（回収ガイドブック全戸配布）','回収頻度の見直し（週2回収集の試験導入）','分別方法のSNS・動画による周知強化'] },
+  paper:   { wasteFactor:1.5, ghgFactor:0.8, costFactor:0.7,
+    policy:['古紙回収ステーションの拡充（小学校・集会所への設置）','地域回収団体との連携協定の締結','事業系紙ごみの排出事業者への個別分別指導'] },
+  pet:     { wasteFactor:1.0, ghgFactor:2.5, costFactor:0.9,
+    policy:['スーパー・公共施設への回収拠点の増設（50箇所目標）','店頭回収ポイント還元制度の導入支援','PETボトルの分別識別マーク周知キャンペーン実施'] },
+  metal:   { wasteFactor:0.9, ghgFactor:1.3, costFactor:1.5,
+    policy:['スクラップ回収ルートの最適化（業者コンペ実施）','事業系金属くず排出事業者との個別回収協定の締結','資源回収業者との四半期定期連携協議の設置'] },
+  glass:   { wasteFactor:0.8, ghgFactor:0.5, costFactor:0.8,
+    policy:['びん回収拠点の集約・アクセス改善（徒歩10分圏内化）','カレット（再生原料）利活用先企業との連携確保','飲食店・小売店向け分別協力依頼の組織的実施'] },
+};
+const IMPACT_COLS  = ['#887CFF','#47D1FF','#53ACFF'];
+const IMPACT_COLS_A= ['rgba(136,124,255,.65)','rgba(71,209,255,.6)','rgba(83,172,255,.6)'];
+const CHIP_CLS     = ['','sel-1','sel-2','sel-3'];
+
+let selectedImpactItems = [];   // max 3 keys
+let impactDeltas = {};           // key -> 0-30
+
+function calcImpact(key, delta) {
+  const m = DATA[mainKey], w = ITEMS[key].weight, imp = ITEM_IMPACTS[key];
+  const wasteKt = m.waste * w * (delta / 100);
+  return {
+    waste: +wasteKt.toFixed(2),
+    ghg:   +Math.round(wasteKt * 1000 * imp.ghgFactor),
+    cost:  +( wasteKt * 30 * imp.costFactor ).toFixed(1),
+  };
+}
+
+function buildImpactChips() {
+  const el = document.getElementById('impactChips');
+  el.innerHTML = '';
+  Object.keys(ITEMS).forEach(key => {
+    const idx = selectedImpactItems.indexOf(key);
+    const isSel = idx >= 0;
+    const isMax = !isSel && selectedImpactItems.length >= 3;
+    const btn = document.createElement('button');
+    btn.className = 'chip' + (isSel ? ' ' + CHIP_CLS[idx+1] : '') + (isMax ? ' maxed' : '');
+    btn.textContent = ITEMS[key].label;
+    if (!isMax) btn.onclick = () => toggleImpactItem(key);
+    el.appendChild(btn);
+  });
+}
+
+function toggleImpactItem(key) {
+  const idx = selectedImpactItems.indexOf(key);
+  if (idx >= 0) { selectedImpactItems.splice(idx, 1); delete impactDeltas[key]; }
+  else if (selectedImpactItems.length < 3) { selectedImpactItems.push(key); impactDeltas[key] = 0; }
+  buildImpactChips();
+  buildImpactSliders();
+  buildImpactCharts();
+}
+
+function buildImpactSliders() {
+  const el = document.getElementById('impactSliders');
+  el.innerHTML = '';
+  selectedImpactItems.forEach((key, i) => {
+    const cur = DATA[mainKey].itemRates[key];
+    const delta = impactDeltas[key] || 0;
+    const row = document.createElement('div');
+    row.className = 'impact-sl-row';
+    row.innerHTML = `
+      <div class="impact-sl-name">
+        <span class="impact-sl-dot" style="background:${IMPACT_COLS[i]}"></span>
+        <span style="font-size:10px;line-height:1.3;">${ITEMS[key].label}</span>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--slate);margin-bottom:3px;">
+          <span>現状 ${cur}%</span><span>+30pt 上限</span>
+        </div>
+        <input type="range" min="0" max="30" step="1" value="${delta}"
+          oninput="impactDeltas['${key}']=+this.value;document.getElementById('iDv-${key}').textContent='+'+this.value+'pt';buildImpactCharts();">
+        <div class="sl-ticks"><span>+0</span><span>+15pt</span><span>+30pt</span></div>
+      </div>
+      <div class="impact-sl-val" id="iDv-${key}">+${delta}pt</div>`;
+    el.appendChild(row);
+  });
+}
+
+function buildImpactCharts() {
+  killChart('chartImpactWaste'); killChart('chartImpactGhg'); killChart('chartImpactCost');
+  const empty = document.getElementById('impactEmpty');
+  const grid  = document.getElementById('impactChartGrid');
+  const policy= document.getElementById('policyBox');
+
+  if (selectedImpactItems.length === 0) {
+    empty.style.display = ''; grid.style.display = 'none'; policy.style.display = 'none'; return;
+  }
+  empty.style.display = 'none'; grid.style.display = '';
+
+  const labels = selectedImpactItems.map(k => ITEMS[k].label);
+  const imps   = selectedImpactItems.map(k => calcImpact(k, impactDeltas[k]||0));
+  const bgs    = selectedImpactItems.map((_,i) => IMPACT_COLS_A[i]);
+  const bds    = selectedImpactItems.map((_,i) => IMPACT_COLS[i]);
+
+  const makeBar = (id, vals, unit) => {
+    const hasVal = vals.some(v => v > 0);
+    return new Chart(document.getElementById(id), {
+      type: 'bar',
+      data: { labels, datasets:[{ data:vals, backgroundColor:bgs, borderColor:bds, borderWidth:1.5, borderRadius:5, barPercentage:.55 }]},
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{ legend:{display:false},
+          tooltip:{ callbacks:{ label: ctx=>`${ctx.parsed.y.toFixed(ctx.parsed.y<1?2:0)} ${unit}` }} },
+        scales:{
+          x:{ ticks:{font:{size:9,family:'Manrope'},color:C.slate}, grid:{color:C.grid} },
+          y:{ min:0, ticks:{font:{size:9,family:'Manrope'},color:C.slate,callback:v=>v+(unit==='千t'?'':'')}, grid:{color:C.grid} }
+        }
+      }
+    });
+  };
+
+  CH.impactWaste = makeBar('chartImpactWaste', imps.map(v=>v.waste), '千t');
+  CH.impactGhg   = makeBar('chartImpactGhg',   imps.map(v=>v.ghg),  't');
+  CH.impactCost  = makeBar('chartImpactCost',   imps.map(v=>v.cost), '百万');
+
+  // Policy & analysis
+  const active = selectedImpactItems.map(k=>({key:k,...calcImpact(k,impactDeltas[k]||0)})).filter(v=>v.waste>0||true);
+  if (active.length === 0) { policy.style.display='none'; return; }
+
+  const wasteW = active.reduce((a,b)=>a.waste>=b.waste?a:b);
+  const ghgW   = active.reduce((a,b)=>a.ghg  >=b.ghg  ?a:b);
+  const costW  = active.reduce((a,b)=>a.cost  >=b.cost  ?a:b);
+
+  const lines = ['<strong>【インパクト分析】</strong>'];
+  if (active.some(v=>v.waste>0)) {
+    lines.push(`● <strong>${ITEMS[wasteW.key].label}</strong>の改善が廃棄物総量削減に最も寄与します（▼${wasteW.waste.toFixed(2)}千t）。`);
+    lines.push(`● <strong>${ITEMS[ghgW.key].label}</strong>はGHG削減効果が最も高く、優先施策候補です（▼${ghgW.ghg.toLocaleString()}t-CO₂e）。`);
+    lines.push(`● <strong>${ITEMS[costW.key].label}</strong>は処理コスト削減に最も効果的です（▼${costW.cost.toFixed(1)}百万円）。`);
+  } else {
+    lines.push('● スライダーを動かすと削減インパクトが表示されます。');
+  }
+
+  const withDelta = selectedImpactItems.filter(k=>(impactDeltas[k]||0)>0);
+  if (withDelta.length > 0) {
+    lines.push(''); lines.push('<strong>【推奨施策】</strong>');
+    withDelta.forEach(key => {
+      lines.push(`<strong>▶ ${ITEMS[key].label}（目標 +${impactDeltas[key]}pt）</strong>`);
+      ITEM_IMPACTS[key].policy.forEach(p => lines.push(`　・${p}`));
+    });
+  }
+  policy.innerHTML = lines.map(l=>`<p>${l}</p>`).join('');
+  policy.style.display = 'block';
+}
+
+function buildImpactSection() {
+  selectedImpactItems = [];
+  impactDeltas = {};
+  buildImpactChips();
+  buildImpactSliders();
+  buildImpactCharts();
 }
 
 // ═══════════════════════════════════════════════
