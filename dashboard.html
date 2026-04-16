@@ -460,6 +460,69 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
 .impact-kpi-bar  { height: 100%; border-radius: var(--r-pill); width: 0%; transition: width .5s cubic-bezier(.4,0,.2,1); }
 .impact-kpi-pct  { font-size: 11px; font-weight: 600; color: var(--slate); }
 
+/* ─── Info popup ─── */
+.info-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--border); border: none; cursor: pointer;
+  font-size: 11px; font-weight: 700; color: var(--slate);
+  font-family: 'Manrope', sans-serif; line-height: 1;
+  transition: background .15s, color .15s;
+  flex-shrink: 0; margin-left: 6px; vertical-align: middle;
+}
+.info-btn:hover { background: var(--purple); color: #fff; }
+.info-popup-overlay {
+  display: none; position: fixed; inset: 0; z-index: 999;
+}
+.info-popup-overlay.open { display: block; }
+.info-popup {
+  position: absolute;
+  background: #fff; border: 1.5px solid var(--border);
+  border-radius: var(--r-lg); box-shadow: 0 8px 32px rgba(0,0,0,.13);
+  width: 520px; max-height: 80vh; overflow-y: auto;
+  padding: 22px 24px 20px; font-family: 'Manrope', sans-serif;
+  font-size: 12px; color: var(--black); line-height: 1.65;
+}
+.info-popup-hd {
+  font-size: 13px; font-weight: 800; color: var(--black);
+  margin-bottom: 14px; padding-bottom: 10px;
+  border-bottom: 1.5px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.info-popup-close {
+  background: none; border: none; cursor: pointer; font-size: 16px;
+  color: var(--slate); line-height: 1; padding: 0 2px;
+}
+.info-popup-close:hover { color: var(--black); }
+.info-popup h4 {
+  font-size: 11px; font-weight: 800; color: var(--purple);
+  letter-spacing: .4px; text-transform: uppercase;
+  margin: 14px 0 6px;
+}
+.info-popup h4:first-of-type { margin-top: 0; }
+.info-popup p { margin: 0 0 6px; }
+.info-popup .formula {
+  background: var(--bg-muted); border-left: 3px solid var(--purple);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 7px 11px; font-size: 11.5px; font-weight: 600;
+  color: var(--black); margin: 6px 0 10px; line-height: 1.6;
+}
+.info-popup table {
+  width: 100%; border-collapse: collapse; margin: 6px 0 10px;
+  font-size: 11px;
+}
+.info-popup th {
+  text-align: left; font-weight: 700; color: var(--slate);
+  border-bottom: 1.5px solid var(--border); padding: 4px 8px;
+}
+.info-popup td { padding: 4px 8px; border-bottom: 1px solid var(--border); }
+.info-popup td:last-child { text-align: right; font-weight: 700; }
+.info-popup .note {
+  font-size: 10.5px; color: var(--slate); background: #fff8e7;
+  border: 1px solid #ffe4a0; border-radius: var(--r-sm);
+  padding: 8px 11px; margin-top: 12px; line-height: 1.6;
+}
+
 /* PC固定レイアウト — レスポンシブ崩れを防ぐ */
 </style>
 </head>
@@ -669,7 +732,10 @@ input[type="range"]::-moz-range-thumb { width: 18px; height: 18px; border: 3px s
     <div class="card">
       <div class="card-hd">
         <div>
-          <div class="card-title">品目別インパクト比較</div>
+          <div class="card-title" style="display:flex;align-items:center;gap:0;">
+            品目別インパクト比較
+            <button class="info-btn" id="impactInfoBtn" onclick="toggleImpactInfo(event)" title="計算ロジックを見る">i</button>
+          </div>
           <div class="card-desc">最大3品目を選択 ― 廃棄物・GHG・コストへの効果を比較</div>
         </div>
         <span class="tag tag-purple">施策分析</span>
@@ -1492,6 +1558,89 @@ function resetSliders() {
 function killChart(id) { const c = Chart.getChart(id); if (c) c.destroy(); }
 function setText(id, val) { const el = document.getElementById(id); if (el) el.textContent = val; }
 function pop(el) { el.classList.remove('pop'); void el.offsetWidth; el.classList.add('pop'); }
+
+function toggleImpactInfo(e) {
+  e.stopPropagation();
+  const overlay = document.getElementById('impactInfoOverlay');
+  const popup   = document.getElementById('impactInfoPopup');
+  const btn     = document.getElementById('impactInfoBtn');
+  if (overlay.classList.contains('open')) {
+    overlay.classList.remove('open');
+    return;
+  }
+  // ボタン位置に合わせてポップアップを配置
+  const r = btn.getBoundingClientRect();
+  const popW = 520;
+  let left = r.left;
+  if (left + popW > window.innerWidth - 16) left = window.innerWidth - popW - 16;
+  popup.style.top  = (r.bottom + 8) + 'px';
+  popup.style.left = Math.max(8, left) + 'px';
+  overlay.classList.add('open');
+}
+document.addEventListener('click', () => {
+  document.getElementById('impactInfoOverlay').classList.remove('open');
+});
 </script>
+
+<!-- ── 計算ロジック ポップアップ ── -->
+<div class="info-popup-overlay" id="impactInfoOverlay" onclick="this.classList.remove('open')">
+  <div class="info-popup" id="impactInfoPopup" onclick="event.stopPropagation()">
+    <div class="info-popup-hd">
+      施策インパクト合計 — 計算ロジック
+      <button class="info-popup-close" onclick="document.getElementById('impactInfoOverlay').classList.remove('open')">✕</button>
+    </div>
+
+    <h4>① 廃棄物削減量（千t）</h4>
+    <div class="formula">
+      廃棄物削減量 = 廃棄物総量（千t） × 品目の組成比率 × スライダー改善幅（pt）÷ 100
+    </div>
+    <table>
+      <tr><th>品目</th><th>組成比率</th></tr>
+      <tr><td>プラスチック容器包装</td><td>10%</td></tr>
+      <tr><td>紙類</td><td>25%</td></tr>
+      <tr><td>ペットボトル</td><td>2%</td></tr>
+      <tr><td>缶・金属類</td><td>4%</td></tr>
+      <tr><td>びん・ガラス類</td><td>4%</td></tr>
+    </table>
+    <p>例：東京23区（廃棄物総量 2,936千t）でプラスチックを +10pt 改善<br>
+    → 2,936 × 0.10 × 10÷100 = <strong>29.4千t削減</strong></p>
+
+    <h4>② GHG削減（t-CO₂e）</h4>
+    <div class="formula">
+      GHG削減量 = 廃棄物削減量（千t）× 1,000 × 品目別GHG係数
+    </div>
+    <table>
+      <tr><th>品目</th><th>GHG係数</th></tr>
+      <tr><td>プラスチック容器包装</td><td>1.5</td></tr>
+      <tr><td>紙類</td><td>0.8</td></tr>
+      <tr><td>ペットボトル</td><td>2.5（最大）</td></tr>
+      <tr><td>缶・金属類</td><td>1.3</td></tr>
+      <tr><td>びん・ガラス類</td><td>0.5</td></tr>
+    </table>
+    <p>例：プラスチック 29.4千t削減 → 29.4 × 1,000 × 1.5 = <strong>44,100 t-CO₂e削減</strong></p>
+
+    <h4>③ コスト削減（百万円）</h4>
+    <div class="formula">
+      コスト削減額 = 廃棄物削減量（千t）× 30百万円/千t × 品目別コスト係数
+    </div>
+    <table>
+      <tr><th>品目</th><th>コスト係数</th></tr>
+      <tr><td>プラスチック容器包装</td><td>1.0</td></tr>
+      <tr><td>紙類</td><td>0.7</td></tr>
+      <tr><td>ペットボトル</td><td>0.9</td></tr>
+      <tr><td>缶・金属類</td><td>1.5（最大）</td></tr>
+      <tr><td>びん・ガラス類</td><td>0.8</td></tr>
+    </table>
+    <p>例：プラスチック 29.4千t削減 → 29.4 × 30 × 1.0 = <strong>882百万円削減</strong></p>
+
+    <h4>④ 合計値とプログレスバー</h4>
+    <p>複数品目を選択した場合は各品目の試算値を<strong>単純合算</strong>します。<br>
+    プログレスバーは「合計削減量 ÷ 自治体全体のベースライン」で相対化した削減率を示します。</p>
+
+    <div class="note">
+      ⚠️ GHG係数・コスト係数・組成比率は政令指定都市の公表データを参考にした簡易試算値です。自治体ごとの実測値とは異なる場合があり、施策優先順位の検討補助ツールとしての位置づけです。
+    </div>
+  </div>
+</div>
 </body>
 </html>
